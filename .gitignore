@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# PChome 登入 session
+auth_state.json
+
+# 環境變數（含敏感資料）
+.env
+
+
+# claude 相關
+.claude
+.playwright-*
+cli.config.json
