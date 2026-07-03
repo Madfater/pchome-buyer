@@ -46,4 +46,5 @@ fi
 echo ""
 echo "開始執行搶購腳本..."
 cd "$SCRIPT_DIR"
-uv run python main.py buy $PRODUCT_ARGS
+# 傳入 --sale-time 讓腳本分段輪詢：開賣前 15 秒才全速
+uv run python main.py buy --sale-time "$SALE_TIME" $PRODUCT_ARGS
