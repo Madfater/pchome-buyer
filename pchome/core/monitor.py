@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime
 
-from .cancel import cancellable_sleep, check_cancel
+from .cancel import JobCancelled, cancellable_sleep, check_cancel
 from .config import (
     CART_HOST,
     FAST_POLL_WINDOW_SECS,
@@ -15,6 +15,7 @@ from .config import (
     SLOW_POLL_FACTOR,
 )
 from .jsapi import JSONP_JS
+from .membership import GroupMembership
 from .reporter import Reporter
 from .timing import get_server_offset, now_ms
 
@@ -24,7 +25,7 @@ _BUTTON_TO_CARD = {"ForSale": "forsale", "SoldOut": "soldout"}
 
 def wait_for_sale(
     page,
-    product_ids: list[str],
+    membership: GroupMembership,
     interval: float,
     sale_ts: float | None,
     reporter: Reporter,
@@ -36,12 +37,18 @@ def wait_for_sale(
     ForSale=可購買, NotReady=尚未開賣, SoldOut=已售完。
     任一商品開賣即結束等待；全部售完則回傳空列表。
 
+    成員集每輪重新讀取（監控期間可加入/退出）；成員清空視同取消。
+
     有指定 sale_ts（開賣時間）時分段輪詢：開賣前 FAST_POLL_WINDOW_SECS 秒
     才切到全速 interval，之前以 interval*SLOW_POLL_FACTOR 慢速輪詢。
     """
+    initial_ids = membership.active_ids()
+    if not initial_ids:
+        raise JobCancelled()
+
     # 先導向任一商品頁面，確保 cookie 正確（snapup API 需要從站內呼叫）
     page.goto(
-        PRODUCT_URL.format(product_id=product_ids[0]),
+        PRODUCT_URL.format(product_id=initial_ids[0]),
         wait_until="domcontentloaded",
     )
 
@@ -58,15 +65,21 @@ def wait_for_sale(
             f"開賣時間: {datetime.fromtimestamp(sale_ts):%Y/%m/%d %H:%M:%S}"
             f"，前 {FAST_POLL_WINDOW_SECS} 秒起全速輪詢"
         )
-    reporter.log(f"監控 {len(product_ids)} 個商品...")
+    reporter.log(f"監控 {len(initial_ids)} 個商品...")
 
-    ids_param = ",".join(product_ids)
-    button_url = f"{PROD_BUTTON_API}&id={ids_param}&_callback={{CB}}"
     reported_sold_out: set[str] = set()
     last_card_status: dict[str, str] = {}
 
     while True:
         check_cancel(cancel)
+
+        # 成員集每輪重新讀取：監控中加入的商品自動納入批次查詢
+        product_ids = membership.active_ids()
+        if not product_ids:
+            raise JobCancelled()
+
+        ids_param = ",".join(product_ids)
+        button_url = f"{PROD_BUTTON_API}&id={ids_param}&_callback={{CB}}"
 
         # 用 button API 併行查詢所有商品的 ButtonType 狀態（JSONP 端點）
         btn_results = page.evaluate(JSONP_JS, button_url)

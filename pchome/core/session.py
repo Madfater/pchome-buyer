@@ -48,3 +48,17 @@ def check_session(page) -> bool:
         return False
     except PlaywrightTimeout:
         return "login" not in page.url
+
+
+def check_session_standalone() -> bool:
+    """開短命 headless 瀏覽器檢查 session 有效性，供 auth 狀態端點使用"""
+    if not has_auth_state():
+        return False
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            context = browser.new_context(storage_state=AUTH_STATE_FILE)
+            page = context.new_page()
+            return check_session(page)
+        finally:
+            browser.close()

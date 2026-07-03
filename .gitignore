@@ -9,8 +9,15 @@ wheels/
 # Virtual environments
 .venv
 
+# 前端
+node_modules/
+
 # PChome 登入 session
 auth_state.json
+
+# 執行期資料（商品清單、結帳紀錄）
+products.json
+checkouts.json
 
 # 環境變數（含敏感資料）
 .env

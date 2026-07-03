@@ -13,6 +13,10 @@ class Reporter:
     def product_status(self, pid: str, status: str, info: str = "") -> None:
         """單一商品狀態變更（monitoring/forsale/soldout/carted/failed）"""
 
+    def phase(self, name: str) -> None:
+        """流程階段變更（lead_wait/checking_session/monitoring/carting/checkout/holding），
+        供服務層追蹤 run-group 狀態；終端機輸出不需要，預設 no-op"""
+
 
 class ConsoleReporter(Reporter):
     """終端機輸出：progress 用 \\r 覆寫同一行，log 會先換行避免蓋到進度列"""

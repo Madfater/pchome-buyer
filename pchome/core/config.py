@@ -5,11 +5,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 AUTH_STATE_FILE = PROJECT_ROOT / "auth_state.json"
 PRODUCTS_FILE = PROJECT_ROOT / "products.json"
+CHECKOUTS_FILE = PROJECT_ROOT / "checkouts.json"
 
 # PChome API endpoints
 HOME_URL = "https://24h.pchome.com.tw/"

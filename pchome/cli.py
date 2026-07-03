@@ -1,16 +1,17 @@
-"""命令列介面：login / buy / web 三個子指令
+"""命令列介面：login / buy / web 三個子指令（輔助工具，主要介面是網頁控制台）
 
 所有 input()/print 互動集中在這層，核心流程透過 ConsoleReporter 輸出。
 """
 
 import argparse
+import ipaddress
 import sys
 
-from . import session
-from .config import AUTH_STATE_FILE, DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS
-from .reporter import ConsoleReporter
-from .runner import JobConfig, run_snapup_job
-from .timing import parse_sale_time
+from .core import session
+from .core.config import AUTH_STATE_FILE, DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS
+from .core.reporter import ConsoleReporter
+from .core.runner import JobConfig, run_snapup_job
+from .core.timing import parse_sale_time
 
 
 def cmd_login(args) -> None:
@@ -24,6 +25,7 @@ def cmd_login(args) -> None:
 
     session.login_flow(wait_for_user)
     print(f"登入狀態已儲存至 {AUTH_STATE_FILE}")
+    print("提示：遠端部署時，可把這個檔案的內容貼到網頁控制台的「登入」視窗匯入")
 
 
 def cmd_buy(args) -> None:
@@ -42,7 +44,7 @@ def cmd_buy(args) -> None:
         headless=args.headless,
     )
 
-    def hold():
+    def hold(_result):
         # 保持瀏覽器開啟，讓使用者手動完成結帳
         print("\n瀏覽器保持開啟中，完成結帳後按 Enter 關閉...")
         input()
@@ -56,10 +58,22 @@ def cmd_web(args) -> None:
     """啟動網頁控制台"""
     import uvicorn
 
-    from .web.app import create_app
+    from .api.app import create_app
 
-    print(f"PChome 搶購控制台: http://127.0.0.1:{args.port}")
-    uvicorn.run(create_app(), host="127.0.0.1", port=args.port, log_level="warning")
+    if not _is_loopback(args.host):
+        print(f"警告: 綁定 {args.host} 會讓控制台暴露在網路上（本身無認證），")
+        print("請確保由反向代理（nginx basic auth / VPN 等）保護存取")
+    print(f"PChome 搶購控制台: http://{args.host}:{args.port}")
+    uvicorn.run(create_app(), host=args.host, port=args.port, log_level="warning")
+
+
+def _is_loopback(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def main() -> None:
@@ -87,8 +101,12 @@ def main() -> None:
         help=f"搭配 --sale-time：開賣前幾秒啟動監控（預設 {DEFAULT_LEAD_SECS:.0f}）",
     )
 
-    web_parser = subparsers.add_parser("web", help="啟動網頁控制台（http://127.0.0.1:8787）")
+    web_parser = subparsers.add_parser("web", help="啟動網頁控制台（預設 http://127.0.0.1:8787）")
     web_parser.add_argument("--port", type=int, default=8787, help="監聽 port（預設 8787）")
+    web_parser.add_argument(
+        "--host", default="127.0.0.1",
+        help="監聽位址（預設 127.0.0.1；遠端部署可設 0.0.0.0，請自行以反向代理保護）",
+    )
 
     args = parser.parse_args()
 
