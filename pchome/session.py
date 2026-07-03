@@ -36,10 +36,6 @@ def has_auth_state() -> bool:
     return AUTH_STATE_FILE.exists()
 
 
-def load_auth_state() -> dict:
-    return json.loads(AUTH_STATE_FILE.read_text())
-
-
 def check_session(page) -> bool:
     """檢查登入 session 是否仍有效（前往購物車頁，過期會被導向登入頁）
 

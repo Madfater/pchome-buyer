@@ -184,9 +184,10 @@ class JobManager:
         with self._lock:
             if self._login_thread and self._login_thread.is_alive():
                 return False
-            self._login_save = threading.Event()
+            save_event = threading.Event()
+            self._login_save = save_event
             self._login_thread = threading.Thread(
-                target=self._login_run, daemon=True, name="login"
+                target=self._login_run, args=(save_event,), daemon=True, name="login"
             )
             self._login_thread.start()
         return True
@@ -195,10 +196,13 @@ class JobManager:
         if self._login_save is not None:
             self._login_save.set()
 
-    def _login_run(self) -> None:
+    def _login_run(self, save_event: threading.Event) -> None:
+        def wait_for_user() -> None:
+            save_event.wait()
+
         self.bus.publish({"type": "login", "state": "browser_open"})
         try:
-            session.login_flow(self._login_save.wait)
+            session.login_flow(wait_for_user)
             self.bus.publish({"type": "login", "state": "saved"})
         except Exception as e:
             self.bus.publish({"type": "login", "state": "error", "msg": str(e)})

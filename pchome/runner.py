@@ -19,7 +19,7 @@ from . import session
 from .cancel import JobCancelled, cancellable_sleep
 from .cart import add_with_retry
 from .checkout import go_to_checkout
-from .config import DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS, PRODUCT_URL
+from .config import AUTH_STATE_FILE, DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS, PRODUCT_URL
 from .monitor import wait_for_sale
 from .reporter import Reporter
 
@@ -70,7 +70,7 @@ def run_snapup_job(
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=cfg.headless)
             try:
-                context = browser.new_context(storage_state=session.load_auth_state())
+                context = browser.new_context(storage_state=AUTH_STATE_FILE)
                 page = context.new_page()
 
                 # 開跑前先確認 session 有效，避免等到開賣才發現要重新登入
