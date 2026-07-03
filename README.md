@@ -1,6 +1,6 @@
 # PChome 24h 搶購腳本
 
-使用 Playwright 瀏覽器自動化，監控 PChome 24h 商品開賣狀態，自動加入購物車並結帳。
+使用 Playwright 瀏覽器自動化，監控 PChome 24h 商品開賣狀態，自動加入購物車並結帳。提供 CLI 與網頁控制台兩種操作方式。
 
 ## 功能
 
@@ -9,9 +9,9 @@
 - 支援同時監控多個商品，併行查詢狀態
 - 透過 `snapup` + `cart modify` API 直接加入購物車（不需操作頁面按鈕），多商品並行加入
 - 啟動時預檢登入 session 是否有效，過期立即提示重新登入
-- 支援 `--sale-time` 分段輪詢：開賣前 15 秒才全速輪詢，降低被封鎖風險
+- 支援 `--sale-time`：距開賣超過 5 分鐘先睡眠等待（`--lead` 可調），開賣前 15 秒才全速輪詢
 - 自動填寫信用卡安全碼 (CVC) 並可選自動付款
-- 排程腳本支援在開賣前 5 分鐘自動啟動
+- 網頁控制台：卡片式管理多個商品，同開賣時間的商品一起結帳、不同時間分開結帳
 
 ## 安裝
 
@@ -35,7 +35,7 @@ CVC=123
 AUTO_PAY=false
 ```
 
-## 使用方式
+## 使用方式（CLI）
 
 ### 1. 登入
 
@@ -62,24 +62,35 @@ uv run python main.py buy DGCQ39-A900JESMM --headless
 # 自訂輪詢間隔（預設 0.5 秒，實際會在 0.5x~1.5x 間隨機）
 uv run python main.py buy DGCQ39-A900JESMM --interval 0.3
 
-# 指定開賣時間：開賣前 15 秒才全速輪詢，之前以 4 倍間隔慢速輪詢
+# 指定開賣時間：距開賣超過 5 分鐘會先睡眠，開賣前 5 分鐘自動開始監控，
+# 前 15 秒才全速輪詢（之前以 4 倍間隔慢速輪詢）
 uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00"
-```
 
-### 3. 排程搶購
-
-使用 `schedule.sh` 在指定開賣時間前 5 分鐘自動啟動監控：
-
-```bash
-# 基本用法
-./schedule.sh "2026-03-06 12:00" DGCQ39-A900IGZAX DGCQ39-A900JRDBJ
-
-# 搭配 headless 模式
-./schedule.sh "2026-03-06 12:00" DGCQ39-A900IGZAX --headless
+# 調整提前啟動監控的秒數（預設 300 秒 = 5 分鐘）
+uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00" --lead 600
 
 # 背景執行
-nohup ./schedule.sh "2026-03-06 12:00" DGCQ39-A900IGZAX > buy.log 2>&1 &
+nohup uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00" --headless > buy.log 2>&1 &
 ```
+
+## 使用方式（網頁控制台）
+
+```bash
+uv run python main.py web          # http://127.0.0.1:8787
+uv run python main.py web --port 9000
+```
+
+- **登入**：按「登入」會彈出真實瀏覽器視窗，手動登入完成後回控制台按「完成登入，儲存 session」。
+- **新增商品**：輸入商品編號與開賣時間（可留空 = 立即監控），每個商品一張卡片。
+- **分組結帳**：開賣時間相同的商品自動歸為同一組（卡片同色標示）——一起監控、一起加入購物車、一次結帳；不同開賣時間是獨立任務、分開結帳。
+- **啟動**：按「全部啟動」依分組啟動任務，卡片與日誌透過 SSE 即時更新。
+- **付款**：結帳頁就緒後會保留瀏覽器視窗讓你手動確認付款（`AUTO_PAY=true` 則自動點擊），完成後在控制台按「結束」關閉瀏覽器。
+
+### 已知限制
+
+- 帳號購物車是全域的，「加車→結帳」階段以全域鎖序列化：兩組開賣時間過近時，後一組會等前一組結帳完成。
+- 網頁登入與付款確認依賴本機有頭瀏覽器（WSL 需 WSLg）；遠端存取需另外加畫面串流，目前不支援。
+- 控制台只綁 `127.0.0.1`，請勿改綁對外介面（無任何驗證機制）。
 
 ## 搶購流程
 
@@ -107,10 +118,27 @@ https://24h.pchome.com.tw/prod/DGCQ39-A900JESMM
 
 ```
 pchome-buyer/
-├── main.py          # 主程式
-├── schedule.sh      # 排程腳本
-├── auth_state.json  # 登入狀態（自動產生，已 gitignore）
-├── .env             # 環境變數（CVC、AUTO_PAY）
-├── pyproject.toml   # 專案設定
-└── uv.lock          # 依賴鎖定
+├── main.py              # 入口（轉呼叫 pchome.cli）
+├── pchome/
+│   ├── config.py        # 環境變數、API 端點、常數
+│   ├── jsapi.py         # 瀏覽器端 JS 片段（JSONP、批次加車）
+│   ├── timing.py        # 時間戳、開賣時間解析、伺服器對時
+│   ├── reporter.py      # 輸出抽象（終端機 / 網頁）
+│   ├── cancel.py        # 任務取消機制
+│   ├── session.py       # 登入、session 儲存與檢查
+│   ├── monitor.py       # 開賣輪詢監控
+│   ├── cart.py          # 加入購物車 + 重試
+│   ├── checkout.py      # 結帳、填 CVC、自動付款
+│   ├── runner.py        # 完整搶購流程協調（CLI / web 共用）
+│   ├── cli.py           # login / buy / web 子指令
+│   └── web/
+│       ├── store.py     # products.json 持久化
+│       ├── jobs.py      # 分組 job 管理、SSE 事件廣播
+│       ├── app.py       # FastAPI 路由
+│       └── static/index.html  # 卡片網格 UI
+├── auth_state.json      # 登入狀態（自動產生，已 gitignore）
+├── products.json        # 網頁控制台的商品清單（自動產生）
+├── .env                 # 環境變數（CVC、AUTO_PAY）
+├── pyproject.toml       # 專案設定
+└── uv.lock              # 依賴鎖定
 ```
