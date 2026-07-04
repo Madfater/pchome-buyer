@@ -84,16 +84,16 @@ def wait_for_sale(
         # 用 button API 併行查詢所有商品的 ButtonType 狀態（JSONP 端點）
         btn_results = page.evaluate(JSONP_JS, button_url)
         # btn_results 是陣列，每個元素有 Id, ButtonType, Qty 欄位
-        status_map = {
-            item["Id"].rsplit("-", 1)[0]: item for item in btn_results
-        }
+        status_map = {item["Id"].rsplit("-", 1)[0]: item for item in btn_results}
 
         ready = [
-            pid for pid in product_ids
+            pid
+            for pid in product_ids
             if status_map.get(pid, {}).get("ButtonType") == "ForSale"
         ]
         sold_out = [
-            pid for pid in product_ids
+            pid
+            for pid in product_ids
             if status_map.get(pid, {}).get("ButtonType") == "SoldOut"
         ]
         for pid in sold_out:
@@ -147,4 +147,6 @@ def wait_for_sale(
         )
         reporter.progress(f"尚未開賣 | 伺服器時間: {server_now:%H:%M:%S} | {statuses}")
         # 間隔隨機化 ±50%，避免固定頻率的輪詢特徵
-        cancellable_sleep(random.uniform(cur_interval * 0.5, cur_interval * 1.5), cancel)
+        cancellable_sleep(
+            random.uniform(cur_interval * 0.5, cur_interval * 1.5), cancel
+        )

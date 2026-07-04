@@ -56,7 +56,9 @@ export default function CheckoutDetailDialog({ record, onClose }: Props) {
               {record.cart_results.map((r) => (
                 <tr key={r.pid}>
                   <td>{r.pid}</td>
-                  <td>{r.ok ? '成功' : r.sold_out ? '售完' : `失敗（${r.stage}）`}</td>
+                  <td>
+                    {r.ok ? '成功' : r.sold_out ? '售完' : `失敗（${r.stage}）`}
+                  </td>
                   <td>{r.prodcount ?? '—'}</td>
                   <td>{r.prodtotal != null ? `$${r.prodtotal}` : '—'}</td>
                 </tr>
@@ -73,7 +75,11 @@ export default function CheckoutDetailDialog({ record, onClose }: Props) {
                 <dt>CVC</dt>
                 <dd>{record.payinfo.cvc_filled ? '已自動填入' : '未填入'}</dd>
                 <dt>自動付款</dt>
-                <dd>{record.payinfo.auto_pay_clicked ? '已點擊確認付款' : '未點擊'}</dd>
+                <dd>
+                  {record.payinfo.auto_pay_clicked
+                    ? '已點擊確認付款'
+                    : '未點擊'}
+                </dd>
                 {record.payinfo.total && (
                   <>
                     <dt>總金額</dt>
@@ -99,7 +105,9 @@ export default function CheckoutDetailDialog({ record, onClose }: Props) {
 
           {record.log_tail.length > 0 && (
             <details>
-              <summary className="hint">執行日誌（最後 {record.log_tail.length} 行）</summary>
+              <summary className="hint">
+                執行日誌（最後 {record.log_tail.length} 行）
+              </summary>
               <pre className="raw">{record.log_tail.join('\n')}</pre>
             </details>
           )}

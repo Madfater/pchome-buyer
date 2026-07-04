@@ -35,7 +35,9 @@ describe('CheckoutDetailDialog', () => {
 
   it('renders nothing when record is null', () => {
     render(<CheckoutDetailDialog record={null} onClose={vi.fn()} />)
-    expect(screen.queryByRole('heading', { name: '結帳詳情' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: '結帳詳情' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows cart_results rows, distinguishing success/sold-out/failure', () => {
@@ -43,9 +45,36 @@ describe('CheckoutDetailDialog', () => {
       <CheckoutDetailDialog
         record={record({
           cart_results: [
-            { pid: 'A-1', ok: true, sold_out: false, stage: '', prodcount: 2, prodtotal: 1980, raw: null, error: '' },
-            { pid: 'A-2', ok: false, sold_out: true, stage: '', prodcount: null, prodtotal: null, raw: null, error: '' },
-            { pid: 'A-3', ok: false, sold_out: false, stage: 'modify', prodcount: null, prodtotal: null, raw: null, error: 'x' },
+            {
+              pid: 'A-1',
+              ok: true,
+              sold_out: false,
+              stage: '',
+              prodcount: 2,
+              prodtotal: 1980,
+              raw: null,
+              error: '',
+            },
+            {
+              pid: 'A-2',
+              ok: false,
+              sold_out: true,
+              stage: '',
+              prodcount: null,
+              prodtotal: null,
+              raw: null,
+              error: '',
+            },
+            {
+              pid: 'A-3',
+              ok: false,
+              sold_out: false,
+              stage: 'modify',
+              prodcount: null,
+              prodtotal: null,
+              raw: null,
+              error: 'x',
+            },
           ],
         })}
         onClose={vi.fn()}
@@ -57,7 +86,12 @@ describe('CheckoutDetailDialog', () => {
   })
 
   it('shows the payinfo block, including CVC/auto-pay status, only when payinfo is present', () => {
-    const { rerender } = render(<CheckoutDetailDialog record={record({ payinfo: null })} onClose={vi.fn()} />)
+    const { rerender } = render(
+      <CheckoutDetailDialog
+        record={record({ payinfo: null })}
+        onClose={vi.fn()}
+      />,
+    )
     expect(screen.queryByText('結帳頁資訊')).not.toBeInTheDocument()
 
     rerender(
@@ -83,17 +117,39 @@ describe('CheckoutDetailDialog', () => {
   })
 
   it('shows a 標記完成 button only when the record is not yet completed', () => {
-    const { rerender } = render(<CheckoutDetailDialog record={record({ completed: false })} onClose={vi.fn()} />)
+    const { rerender } = render(
+      <CheckoutDetailDialog
+        record={record({ completed: false })}
+        onClose={vi.fn()}
+      />,
+    )
     expect(screen.getByRole('button', { name: '標記完成' })).toBeInTheDocument()
 
-    rerender(<CheckoutDetailDialog record={record({ completed: true })} onClose={vi.fn()} />)
-    expect(screen.queryByRole('button', { name: '標記完成' })).not.toBeInTheDocument()
+    rerender(
+      <CheckoutDetailDialog
+        record={record({ completed: true })}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: '標記完成' }),
+    ).not.toBeInTheDocument()
   })
 
   it('marks the checkout complete and applies the returned snapshot', async () => {
-    vi.mocked(api.completeCheckout).mockResolvedValue({ auth: {}, products: [], groups: {}, checkouts: [] } as never)
+    vi.mocked(api.completeCheckout).mockResolvedValue({
+      auth: {},
+      products: [],
+      groups: {},
+      checkouts: [],
+    } as never)
     const user = userEvent.setup()
-    render(<CheckoutDetailDialog record={record({ id: 'c1', completed: false })} onClose={vi.fn()} />)
+    render(
+      <CheckoutDetailDialog
+        record={record({ id: 'c1', completed: false })}
+        onClose={vi.fn()}
+      />,
+    )
 
     await user.click(screen.getByRole('button', { name: '標記完成' }))
 
@@ -102,9 +158,16 @@ describe('CheckoutDetailDialog', () => {
   })
 
   it('shows a toast if marking complete fails', async () => {
-    vi.mocked(api.completeCheckout).mockRejectedValue(new Error('找不到結帳紀錄'))
+    vi.mocked(api.completeCheckout).mockRejectedValue(
+      new Error('找不到結帳紀錄'),
+    )
     const user = userEvent.setup()
-    render(<CheckoutDetailDialog record={record({ completed: false })} onClose={vi.fn()} />)
+    render(
+      <CheckoutDetailDialog
+        record={record({ completed: false })}
+        onClose={vi.fn()}
+      />,
+    )
 
     await user.click(screen.getByRole('button', { name: '標記完成' }))
 

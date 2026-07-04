@@ -35,7 +35,9 @@ class TestResolveStoreCodes:
         assert any("實際店碼為 DBAJ8U" in line for line in reporter.logs)
 
     def test_no_mismatch_log_when_store_equals_fallback(self, monkeypatch):
-        monkeypatch.setattr(product_info, "_fetch_stores", lambda pids: {"ABC-123": "ABC"})
+        monkeypatch.setattr(
+            product_info, "_fetch_stores", lambda pids: {"ABC-123": "ABC"}
+        )
         reporter = FakeReporter()
         product_info.resolve_store_codes(["ABC-123"], reporter)
         assert not any("實際店碼" in line for line in reporter.logs)
@@ -52,7 +54,9 @@ class TestResolveStoreCodes:
 
     def test_fetch_failure_without_reporter_does_not_raise(self, monkeypatch):
         monkeypatch.setattr(
-            product_info, "_fetch_stores", lambda pids: (_ for _ in ()).throw(RuntimeError())
+            product_info,
+            "_fetch_stores",
+            lambda pids: (_ for _ in ()).throw(RuntimeError()),
         )
         result = product_info.resolve_store_codes(["ABC-123"])
         assert result == {"ABC-123": "ABC"}
@@ -122,7 +126,10 @@ class TestFetchStores:
         monkeypatch.setattr(product_info.urllib.request, "urlopen", fake_urlopen)
         result = product_info._fetch_stores(["A-1", "B-2"])
         assert result == {"A-1": "STOREA", "B-2": "STOREB"}
-        assert "A-1-000%2CB-2-000" in captured_url["url"] or "A-1-000,B-2-000" in captured_url["url"]
+        assert (
+            "A-1-000%2CB-2-000" in captured_url["url"]
+            or "A-1-000,B-2-000" in captured_url["url"]
+        )
 
     def test_list_response_means_no_products_found(self, monkeypatch):
         class FakeResponse:

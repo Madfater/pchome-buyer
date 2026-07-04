@@ -14,7 +14,9 @@ def no_network_store_resolve(monkeypatch):
 def install_fake_run(monkeypatch, phase="monitoring"):
     ready = threading.Event()
 
-    def fake_run(cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None):
+    def fake_run(
+        cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None
+    ):
         reporter.phase(phase)
         ready.set()
         if cancel is not None:

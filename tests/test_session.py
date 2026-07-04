@@ -42,12 +42,16 @@ class TestCheckSession:
         assert page.goto_calls == [CART_URL]
 
     def test_no_redirect_and_url_has_no_login_means_valid(self):
-        page = FakePage(redirects_to_login=False, final_url="https://ecssl.pchome.com.tw/fsrwd/cart")
+        page = FakePage(
+            redirects_to_login=False, final_url="https://ecssl.pchome.com.tw/fsrwd/cart"
+        )
         assert session.check_session(page) is True
 
     def test_no_redirect_but_url_still_contains_login_means_expired(self):
         # 邊界情況：wait_for_url 逾時但最終 URL 仍含 login（例如緩慢的用戶端重導向）
-        page = FakePage(redirects_to_login=False, final_url="https://ecssl.pchome.com.tw/login/x")
+        page = FakePage(
+            redirects_to_login=False, final_url="https://ecssl.pchome.com.tw/login/x"
+        )
         assert session.check_session(page) is False
 
 
@@ -82,10 +86,15 @@ class FakeLoginPage:
 
 
 class FakeContext:
-    def __init__(self, storage_state_value=None, calls: list[str] | None = None, **kwargs):
+    def __init__(
+        self, storage_state_value=None, calls: list[str] | None = None, **kwargs
+    ):
         self.pages: list[FakeLoginPage] = []
         self.init_kwargs = kwargs
-        self._storage_state_value = storage_state_value or {"cookies": [], "origins": []}
+        self._storage_state_value = storage_state_value or {
+            "cookies": [],
+            "origins": [],
+        }
         self._calls = calls
 
     def new_page(self):
@@ -199,7 +208,9 @@ class TestSaveAuthState:
 
 
 class TestCheckSessionStandalone:
-    def test_returns_false_without_launching_playwright_when_no_auth_state(self, monkeypatch):
+    def test_returns_false_without_launching_playwright_when_no_auth_state(
+        self, monkeypatch
+    ):
         monkeypatch.setattr(session, "has_auth_state", lambda: False)
 
         def boom():
@@ -209,7 +220,9 @@ class TestCheckSessionStandalone:
 
         assert session.check_session_standalone() is False
 
-    def test_launches_headless_context_with_auth_state_and_delegates(self, monkeypatch, tmp_path):
+    def test_launches_headless_context_with_auth_state_and_delegates(
+        self, monkeypatch, tmp_path
+    ):
         monkeypatch.setattr(session, "has_auth_state", lambda: True)
         auth_file = tmp_path / "auth_state.json"
         monkeypatch.setattr(session, "AUTH_STATE_FILE", auth_file)

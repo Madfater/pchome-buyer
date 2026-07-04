@@ -7,7 +7,11 @@ import TopBar from './TopBar'
 vi.mock('../api')
 vi.mock('../toast', () => ({ useToast: () => vi.fn() }))
 
-let mockAuth: AuthStatus = { has_auth_state: false, session_valid: null, checked_at: null }
+let mockAuth: AuthStatus = {
+  has_auth_state: false,
+  session_valid: null,
+  checked_at: null,
+}
 let mockConnected = true
 vi.mock('../state', () => ({
   useAppState: () => ({ auth: mockAuth, connected: mockConnected }),
@@ -52,6 +56,8 @@ describe('TopBar', () => {
 
     await user.click(screen.getByRole('button', { name: '登入' }))
 
-    expect(screen.getByRole('heading', { name: '匯入登入憑證' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '匯入登入憑證' }),
+    ).toBeInTheDocument()
   })
 })

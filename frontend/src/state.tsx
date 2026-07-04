@@ -59,7 +59,10 @@ function applySse(state: AppState, ev: SseEvent): AppState {
     case 'log':
       return {
         ...state,
-        logs: [...state.logs.slice(-(MAX_LOG_LINES - 1)), { gid: ev.gid, msg: ev.msg }],
+        logs: [
+          ...state.logs.slice(-(MAX_LOG_LINES - 1)),
+          { gid: ev.gid, msg: ev.msg },
+        ],
       }
     case 'progress': {
       const group = state.groups[ev.gid]
@@ -73,7 +76,9 @@ function applySse(state: AppState, ev: SseEvent): AppState {
       return {
         ...state,
         products: state.products.map((p) =>
-          p.id === ev.pid ? { ...p, state: ev.state, info: ev.info, gid: ev.gid } : p,
+          p.id === ev.pid
+            ? { ...p, state: ev.state, info: ev.info, gid: ev.gid }
+            : p,
         ),
       }
     case 'group': {
@@ -118,7 +123,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useSse(dispatch)
   return (
     <StateContext.Provider value={state}>
-      <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
+      <DispatchContext.Provider value={dispatch}>
+        {children}
+      </DispatchContext.Provider>
     </StateContext.Provider>
   )
 }

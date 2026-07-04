@@ -16,7 +16,13 @@ def container(tmp_path, monkeypatch):
 def app(container):
     fastapi_app = FastAPI()
     fastapi_app.state.container = container
-    for router in (products.router, jobs.router, auth.router, checkouts.router, events.router):
+    for router in (
+        products.router,
+        jobs.router,
+        auth.router,
+        checkouts.router,
+        events.router,
+    ):
         fastapi_app.include_router(router)
     return fastapi_app
 

@@ -31,7 +31,10 @@ def test_status_without_live_reports_no_auth_state_initially(client):
 
 
 def test_status_reflects_auth_state_after_import(client):
-    payload = {"cookies": [{"name": "a", "value": "1", "domain": "pchome.com.tw"}], "origins": []}
+    payload = {
+        "cookies": [{"name": "a", "value": "1", "domain": "pchome.com.tw"}],
+        "origins": [],
+    }
     client.post("/api/auth/import", json={"payload": json.dumps(payload)})
 
     resp = client.get("/api/auth/status")
@@ -52,7 +55,10 @@ def test_status_live_without_auth_state_skips_real_browser_check(client, monkeyp
 
 
 def test_status_live_with_auth_state_uses_mocked_check(client, monkeypatch):
-    payload = {"cookies": [{"name": "a", "value": "1", "domain": "pchome.com.tw"}], "origins": []}
+    payload = {
+        "cookies": [{"name": "a", "value": "1", "domain": "pchome.com.tw"}],
+        "origins": [],
+    }
     client.post("/api/auth/import", json={"payload": json.dumps(payload)})
 
     monkeypatch.setattr(

@@ -3,7 +3,8 @@ import type { AuthStatus, ImportResult, Snapshot } from './types'
 async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
     method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers:
+      body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -31,7 +32,9 @@ export const removeProducts = (pids: string[]) =>
   api<Snapshot>('POST', '/api/products/remove', { pids })
 
 export const updateSaleTime = (pid: string, saleTime: string) =>
-  api<Snapshot>('PATCH', `/api/products/${encodeURIComponent(pid)}`, { sale_time: saleTime })
+  api<Snapshot>('PATCH', `/api/products/${encodeURIComponent(pid)}`, {
+    sale_time: saleTime,
+  })
 
 export const startJobs = (pids: string[]) =>
   api<Snapshot>('POST', '/api/jobs/start', { pids })

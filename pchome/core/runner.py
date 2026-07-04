@@ -19,7 +19,12 @@ from . import session
 from .cancel import JobCancelled, cancellable_sleep
 from .cart import CartItemResult, add_with_retry
 from .checkout import CheckoutInfo, go_to_checkout
-from .config import AUTH_STATE_FILE, DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS, PRODUCT_URL
+from .config import (
+    AUTH_STATE_FILE,
+    DEFAULT_INTERVAL_SECS,
+    DEFAULT_LEAD_SECS,
+    PRODUCT_URL,
+)
 from .membership import GroupMembership
 from .monitor import wait_for_sale
 from .product_info import resolve_store_codes
@@ -122,8 +127,10 @@ def run_snapup_job(
                     checkout_info = go_to_checkout(page, reporter)
 
                 result = JobResult(
-                    "success", success_ids,
-                    cart_results=cart_results, checkout=checkout_info,
+                    "success",
+                    success_ids,
+                    cart_results=cart_results,
+                    checkout=checkout_info,
                 )
                 if hold:
                     reporter.phase("holding")

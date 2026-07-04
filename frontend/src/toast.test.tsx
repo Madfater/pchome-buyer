@@ -24,7 +24,9 @@ describe('ToastProvider', () => {
 
   it('renders nothing until a toast is shown', () => {
     render(<ToastProvider>content</ToastProvider>)
-    expect(screen.queryByText(/./, { selector: '.toast' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(/./, { selector: '.toast' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the message passed to useToast()', async () => {
@@ -56,6 +58,8 @@ describe('ToastProvider', () => {
 
     await vi.advanceTimersByTimeAsync(4000)
 
-    await waitFor(() => expect(screen.queryByText('會消失')).not.toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.queryByText('會消失')).not.toBeInTheDocument(),
+    )
   })
 })

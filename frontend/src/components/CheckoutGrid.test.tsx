@@ -47,8 +47,26 @@ describe('CheckoutGrid', () => {
     mockCheckouts = [
       record({
         cart_results: [
-          { pid: 'A-1', ok: true, sold_out: false, stage: '', prodcount: 2, prodtotal: 1980, raw: null, error: '' },
-          { pid: 'A-2', ok: false, sold_out: true, stage: '', prodcount: null, prodtotal: null, raw: null, error: '' },
+          {
+            pid: 'A-1',
+            ok: true,
+            sold_out: false,
+            stage: '',
+            prodcount: 2,
+            prodtotal: 1980,
+            raw: null,
+            error: '',
+          },
+          {
+            pid: 'A-2',
+            ok: false,
+            sold_out: true,
+            stage: '',
+            prodcount: null,
+            prodtotal: null,
+            raw: null,
+            error: '',
+          },
         ],
       }),
     ]
@@ -59,11 +77,15 @@ describe('CheckoutGrid', () => {
   it('disables 清除已完成 when nothing is completed, enables it otherwise', () => {
     mockCheckouts = [record({ completed: false })]
     const { rerender } = render(<CheckoutGrid />)
-    expect(screen.getByRole('button', { name: '清除已完成（0）' })).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: '清除已完成（0）' }),
+    ).toBeDisabled()
 
     mockCheckouts = [record({ completed: true })]
     rerender(<CheckoutGrid />)
-    expect(screen.getByRole('button', { name: '清除已完成（1）' })).toBeEnabled()
+    expect(
+      screen.getByRole('button', { name: '清除已完成（1）' }),
+    ).toBeEnabled()
   })
 
   it('calls clearCompletedCheckouts and applies the returned snapshot', async () => {
@@ -89,6 +111,8 @@ describe('CheckoutGrid', () => {
 
     await user.click(screen.getByRole('button', { name: '查看詳情' }))
 
-    expect(screen.getByRole('heading', { name: '結帳詳情' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '結帳詳情' }),
+    ).toBeInTheDocument()
   })
 })

@@ -28,7 +28,9 @@ def test_add_product_by_url_with_sale_time_groups_under_that_time(live_server, p
     page.goto(base_url)
 
     page.get_by_role("button", name="＋ 新增任務").click()
-    page.get_by_label("商品網址或編號").fill("https://24h.pchome.com.tw/prod/DGCQ39-A900JESMM")
+    page.get_by_label("商品網址或編號").fill(
+        "https://24h.pchome.com.tw/prod/DGCQ39-A900JESMM"
+    )
     page.get_by_label("開始監測時間（留空表示立即監控）").fill("2026-03-06T12:00")
     page.get_by_role("button", name="新增", exact=True).click()
 
@@ -66,13 +68,17 @@ def test_remove_product_requires_confirmation(live_server, page):
 
     expect(page.get_by_text("DGCQ39-A900JESMM")).to_be_visible()
     page.get_by_title("刪除任務").click()
-    expect(page.get_by_text("將刪除 DGCQ39-A900JESMM，此操作無法復原。")).to_be_visible()
+    expect(
+        page.get_by_text("將刪除 DGCQ39-A900JESMM，此操作無法復原。")
+    ).to_be_visible()
 
     # 對話框中同時有「取消」跟確認用的「刪除」，鎖定 dialog 範圍避免點到頁首其他同名按鈕
     page.get_by_role("dialog").get_by_role("button", name="刪除").click()
 
     expect(page.get_by_text("DGCQ39-A900JESMM")).not_to_be_visible()
-    expect(page.get_by_text("尚未新增任務，按「＋ 新增任務」貼上商品網址開始")).to_be_visible()
+    expect(
+        page.get_by_text("尚未新增任務，按「＋ 新增任務」貼上商品網址開始")
+    ).to_be_visible()
 
 
 def test_bulk_select_and_bulk_delete(live_server, page):
@@ -85,10 +91,16 @@ def test_bulk_select_and_bulk_delete(live_server, page):
     expect(page.get_by_text("已選 2 個")).to_be_visible()
 
     page.get_by_role("button", name="刪除選取（2）").click()
-    expect(page.get_by_text("將刪除 2 個未執行的任務，執行中的任務不受影響。此操作無法復原。")).to_be_visible()
+    expect(
+        page.get_by_text(
+            "將刪除 2 個未執行的任務，執行中的任務不受影響。此操作無法復原。"
+        )
+    ).to_be_visible()
     page.get_by_role("dialog").get_by_role("button", name="刪除").click()
 
-    expect(page.get_by_text("尚未新增任務，按「＋ 新增任務」貼上商品網址開始")).to_be_visible()
+    expect(
+        page.get_by_text("尚未新增任務，按「＋ 新增任務」貼上商品網址開始")
+    ).to_be_visible()
 
 
 def test_login_import_shows_success_and_updates_badge(live_server, page):
@@ -98,16 +110,22 @@ def test_login_import_shows_success_and_updates_badge(live_server, page):
     expect(page.get_by_text("未登入")).to_be_visible()
 
     page.get_by_role("button", name="登入").click()
-    payload = json.dumps({"cookies": [{
-        "name": "PCHOME_MEMBER",
-        "value": "x",
-        "domain": ".pchome.com.tw",
-        "path": "/",
-        "expires": -1,
-        "httpOnly": False,
-        "secure": False,
-        "sameSite": "Lax",
-    }]})
+    payload = json.dumps(
+        {
+            "cookies": [
+                {
+                    "name": "PCHOME_MEMBER",
+                    "value": "x",
+                    "domain": ".pchome.com.tw",
+                    "path": "/",
+                    "expires": -1,
+                    "httpOnly": False,
+                    "secure": False,
+                    "sameSite": "Lax",
+                }
+            ]
+        }
+    )
     page.get_by_label("憑證內容（JSON）").fill(payload)
     page.get_by_role("button", name="匯入").click()
 
@@ -127,7 +145,9 @@ def test_login_import_rejects_unparseable_payload(live_server, page):
     expect(page.get_by_text("JSON 解析失敗", exact=False)).to_be_visible()
 
 
-def test_checkout_record_seeded_directly_is_listed_and_can_be_marked_complete(live_server, page):
+def test_checkout_record_seeded_directly_is_listed_and_can_be_marked_complete(
+    live_server, page
+):
     base_url, container = live_server
     container.checkout_store.add(
         gid="2026-03-06_1200#1",

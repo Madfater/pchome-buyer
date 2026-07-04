@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { addProduct, fetchState, importAuth } from './api'
 
-function mockFetch(response: { ok: boolean; status?: number; statusText?: string; json: () => Promise<unknown> }) {
+function mockFetch(response: {
+  ok: boolean
+  status?: number
+  statusText?: string
+  json: () => Promise<unknown>
+}) {
   const fn = vi.fn().mockResolvedValue(response)
   vi.stubGlobal('fetch', fn)
   return fn
@@ -17,11 +22,18 @@ describe('api()', () => {
   })
 
   it('sends GET without a body or Content-Type header', async () => {
-    const fetchMock = mockFetch({ ok: true, json: async () => ({ auth: {}, products: [], groups: {}, checkouts: [] }) })
+    const fetchMock = mockFetch({
+      ok: true,
+      json: async () => ({ auth: {}, products: [], groups: {}, checkouts: [] }),
+    })
 
     await fetchState()
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/state', { method: 'GET', headers: undefined, body: undefined })
+    expect(fetchMock).toHaveBeenCalledWith('/api/state', {
+      method: 'GET',
+      headers: undefined,
+      body: undefined,
+    })
   })
 
   it('serializes the body as JSON and sets Content-Type when a body is given', async () => {
@@ -32,7 +44,10 @@ describe('api()', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: 'DGCQ39-A900JESMM', sale_time: '2026-03-06 12:00' }),
+      body: JSON.stringify({
+        ref: 'DGCQ39-A900JESMM',
+        sale_time: '2026-03-06 12:00',
+      }),
     })
   })
 

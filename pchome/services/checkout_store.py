@@ -68,6 +68,4 @@ class CheckoutRecordStore:
             return before - len(self._records)
 
     def _save(self) -> None:
-        self._path.write_text(
-            json.dumps(self._records, ensure_ascii=False, indent=2)
-        )
+        self._path.write_text(json.dumps(self._records, ensure_ascii=False, indent=2))

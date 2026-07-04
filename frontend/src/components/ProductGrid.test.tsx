@@ -18,7 +18,14 @@ vi.mock('../state', () => ({
 }))
 
 function product(overrides: Partial<Product> = {}): Product {
-  return { id: 'A-1', sale_time: '', state: 'idle', info: '', gid: null, ...overrides }
+  return {
+    id: 'A-1',
+    sale_time: '',
+    state: 'idle',
+    info: '',
+    gid: null,
+    ...overrides,
+  }
 }
 
 describe('ProductGrid', () => {
@@ -29,7 +36,9 @@ describe('ProductGrid', () => {
 
   it('shows an empty state hint with no products', () => {
     render(<ProductGrid />)
-    expect(screen.getByText('尚未新增任務，按「＋ 新增任務」貼上商品網址開始')).toBeInTheDocument()
+    expect(
+      screen.getByText('尚未新增任務，按「＋ 新增任務」貼上商品網址開始'),
+    ).toBeInTheDocument()
   })
 
   it('groups products by sale_time, "立即監控" first, sorted after that', () => {
@@ -41,7 +50,11 @@ describe('ProductGrid', () => {
     const { container } = render(<ProductGrid />)
 
     const headings = [...container.querySelectorAll('.group-title')]
-    expect(headings.map((h) => h.textContent)).toEqual(['立即監控', '開賣 2026-01-01 09:00', '開賣 2026-03-06 12:00'])
+    expect(headings.map((h) => h.textContent)).toEqual([
+      '立即監控',
+      '開賣 2026-01-01 09:00',
+      '開賣 2026-03-06 12:00',
+    ])
   })
 
   it('does not show the bulk action bar until something is selected', async () => {
@@ -68,19 +81,31 @@ describe('ProductGrid', () => {
   })
 
   it('only counts non-active jobs as startable and active jobs as cancellable', async () => {
-    mockProducts = [product({ id: 'A-1', state: 'idle' }), product({ id: 'A-2', state: 'monitoring' })]
+    mockProducts = [
+      product({ id: 'A-1', state: 'idle' }),
+      product({ id: 'A-2', state: 'monitoring' }),
+    ]
     const user = userEvent.setup()
     render(<ProductGrid />)
 
     await user.click(screen.getByRole('checkbox', { name: '選取整組' }))
 
-    expect(screen.getByRole('button', { name: '啟動選取（1）' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '取消選取（1）' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: '啟動選取（1）' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: '取消選取（1）' }),
+    ).toBeInTheDocument()
   })
 
   it('starts the selected startable jobs and clears selection on success', async () => {
     mockProducts = [product({ id: 'A-1' })]
-    vi.mocked(api.startJobs).mockResolvedValue({ auth: {}, products: [], groups: {}, checkouts: [] } as never)
+    vi.mocked(api.startJobs).mockResolvedValue({
+      auth: {},
+      products: [],
+      groups: {},
+      checkouts: [],
+    } as never)
     const user = userEvent.setup()
     render(<ProductGrid />)
 
@@ -94,22 +119,36 @@ describe('ProductGrid', () => {
 
   it('opens a confirm dialog before bulk-deleting, and calls removeProducts on confirm', async () => {
     mockProducts = [product({ id: 'A-1' }), product({ id: 'A-2' })]
-    vi.mocked(api.removeProducts).mockResolvedValue({ auth: {}, products: [], groups: {}, checkouts: [] } as never)
+    vi.mocked(api.removeProducts).mockResolvedValue({
+      auth: {},
+      products: [],
+      groups: {},
+      checkouts: [],
+    } as never)
     const user = userEvent.setup()
     render(<ProductGrid />)
 
     await user.click(screen.getByRole('checkbox', { name: '選取整組' }))
     await user.click(screen.getByRole('button', { name: '刪除選取（2）' }))
 
-    expect(screen.getByText('將刪除 2 個未執行的任務，執行中的任務不受影響。此操作無法復原。')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '將刪除 2 個未執行的任務，執行中的任務不受影響。此操作無法復原。',
+      ),
+    ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '刪除' }))
 
-    await waitFor(() => expect(api.removeProducts).toHaveBeenCalledWith(['A-1', 'A-2']))
+    await waitFor(() =>
+      expect(api.removeProducts).toHaveBeenCalledWith(['A-1', 'A-2']),
+    )
   })
 
   it('全選 selects every product across groups, 清除選取 clears it', async () => {
-    mockProducts = [product({ id: 'A-1' }), product({ id: 'B-1', sale_time: '2026-03-06 12:00' })]
+    mockProducts = [
+      product({ id: 'A-1' }),
+      product({ id: 'B-1', sale_time: '2026-03-06 12:00' }),
+    ]
     const user = userEvent.setup()
     render(<ProductGrid />)
 
@@ -128,6 +167,8 @@ describe('ProductGrid', () => {
 
     await user.click(screen.getByRole('button', { name: '＋ 新增任務' }))
 
-    expect(screen.getByRole('heading', { name: '新增搶購任務' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: '新增搶購任務' }),
+    ).toBeInTheDocument()
   })
 })

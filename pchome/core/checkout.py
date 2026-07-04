@@ -9,12 +9,14 @@ from .reporter import Reporter
 from .timing import now_ms
 
 # 多組 selector fallback，頁面改版時較不易失效
-CVC_SELECTOR = ", ".join([
-    'input[placeholder="CVC"]',
-    'input[name*="cvc" i]',
-    'input[id*="cvc" i]',
-    'input[autocomplete="cc-csc"]',
-])
+CVC_SELECTOR = ", ".join(
+    [
+        'input[placeholder="CVC"]',
+        'input[name*="cvc" i]',
+        'input[id*="cvc" i]',
+        'input[autocomplete="cc-csc"]',
+    ]
+)
 
 # 結帳資訊擷取（best-effort）：payinfo 頁面結構未定版，逐一嘗試
 _TOTAL_SELECTORS = [

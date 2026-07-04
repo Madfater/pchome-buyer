@@ -43,7 +43,14 @@ describe('ConfirmDialog', () => {
     const onClose = vi.fn()
     const user = userEvent.setup()
     render(
-      <ConfirmDialog open title="t" message="m" confirmLabel="刪除" onConfirm={vi.fn()} onClose={onClose} />,
+      <ConfirmDialog
+        open
+        title="t"
+        message="m"
+        confirmLabel="刪除"
+        onConfirm={vi.fn()}
+        onClose={onClose}
+      />,
     )
 
     await user.click(screen.getByRole('button', { name: '取消' }))
@@ -53,7 +60,15 @@ describe('ConfirmDialog', () => {
 
   it('disables the confirm button while busy', () => {
     render(
-      <ConfirmDialog open title="t" message="m" confirmLabel="刪除" busy onConfirm={vi.fn()} onClose={vi.fn()} />,
+      <ConfirmDialog
+        open
+        title="t"
+        message="m"
+        confirmLabel="刪除"
+        busy
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />,
     )
     expect(screen.getByRole('button', { name: '刪除' })).toBeDisabled()
   })

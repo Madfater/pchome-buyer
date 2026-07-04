@@ -73,7 +73,9 @@ export default function AddProductDialog({ open, onClose }: Props) {
           onChange={(e) => setSaleTime(e.target.value)}
         />
       </label>
-      <span className="hint">開賣時間相同的任務啟動後會合併為一組，一起加車結帳。</span>
+      <span className="hint">
+        開賣時間相同的任務啟動後會合併為一組，一起加車結帳。
+      </span>
       <div className="dialog-actions">
         <button onClick={onClose}>取消</button>
         <button className="primary" onClick={submit} disabled={busy || !pid}>

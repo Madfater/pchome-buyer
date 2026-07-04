@@ -74,7 +74,13 @@ export interface ImportResult {
 export type SseEvent =
   | { type: 'log'; gid: string; msg: string }
   | { type: 'progress'; gid: string; msg: string }
-  | { type: 'job'; pid: string; state: string; info: string; gid: string | null }
+  | {
+      type: 'job'
+      pid: string
+      state: string
+      info: string
+      gid: string | null
+    }
   | {
       type: 'group'
       gid: string

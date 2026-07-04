@@ -49,7 +49,10 @@ export default function LogPanel() {
         ) : (
           shown.map((l, i) => (
             <div key={i}>
-              <span className="gtag" style={{ color: groupColor(gidKey(l.gid)) }}>
+              <span
+                className="gtag"
+                style={{ color: groupColor(gidKey(l.gid)) }}
+              >
                 [{l.gid}]
               </span>{' '}
               {l.msg}

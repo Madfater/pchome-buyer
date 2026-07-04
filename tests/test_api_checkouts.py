@@ -1,7 +1,11 @@
 def _seed_record(container, **overrides):
     kwargs = dict(
-        gid="now#1", sale_time="", status="awaiting_payment",
-        cart_results=[], payinfo=None, log_tail=[],
+        gid="now#1",
+        sale_time="",
+        status="awaiting_payment",
+        cart_results=[],
+        payinfo=None,
+        log_tail=[],
     )
     kwargs.update(overrides)
     return container.checkout_store.add(**kwargs)

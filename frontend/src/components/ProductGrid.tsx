@@ -16,31 +16,47 @@ interface GroupSectionProps {
   onToggleGroup: (pids: string[], selectAll: boolean) => void
 }
 
-function GroupSection({ saleTime, items, selected, onToggle, onToggleGroup }: GroupSectionProps) {
+function GroupSection({
+  saleTime,
+  items,
+  selected,
+  onToggle,
+  onToggleGroup,
+}: GroupSectionProps) {
   const headRef = useRef<HTMLInputElement>(null)
   const selectedCount = items.filter((p) => selected.has(p.id)).length
   const allSelected = selectedCount === items.length
 
   // indeterminate 沒有宣告式 prop，只能命令式設定
   useEffect(() => {
-    if (headRef.current) headRef.current.indeterminate = selectedCount > 0 && !allSelected
+    if (headRef.current)
+      headRef.current.indeterminate = selectedCount > 0 && !allSelected
   }, [selectedCount, allSelected])
 
   return (
     <section
       className="group-section"
-      style={{ '--gcolor': groupColor(saleTimeKey(saleTime)) } as React.CSSProperties}
+      style={
+        { '--gcolor': groupColor(saleTimeKey(saleTime)) } as React.CSSProperties
+      }
     >
       <div className="group-head">
         <input
           ref={headRef}
           type="checkbox"
           checked={allSelected}
-          onChange={() => onToggleGroup(items.map((p) => p.id), !allSelected)}
+          onChange={() =>
+            onToggleGroup(
+              items.map((p) => p.id),
+              !allSelected,
+            )
+          }
           aria-label="選取整組"
         />
         <span className="group-dot" />
-        <span className="group-title">{saleTime ? `開賣 ${saleTime}` : '立即監控'}</span>
+        <span className="group-title">
+          {saleTime ? `開賣 ${saleTime}` : '立即監控'}
+        </span>
         <span className="hint">{items.length} 個任務</span>
       </div>
       <div className="grid">
@@ -112,7 +128,10 @@ export default function ProductGrid() {
     })
   }
 
-  const run = async (fn: (pids: string[]) => Promise<Parameters<typeof applySnapshot>[0]>, pids: string[]) => {
+  const run = async (
+    fn: (pids: string[]) => Promise<Parameters<typeof applySnapshot>[0]>,
+    pids: string[],
+  ) => {
     try {
       applySnapshot(await fn(pids))
       // 批次成功後清除選取；失敗保留供重試
@@ -123,7 +142,8 @@ export default function ProductGrid() {
   }
 
   const startable = selectedPids.filter(
-    (pid) => !ACTIVE_STATES.has(products.find((p) => p.id === pid)?.state ?? ''),
+    (pid) =>
+      !ACTIVE_STATES.has(products.find((p) => p.id === pid)?.state ?? ''),
   )
   const cancellable = selectedPids.filter((pid) =>
     ACTIVE_STATES.has(products.find((p) => p.id === pid)?.state ?? ''),
@@ -133,7 +153,9 @@ export default function ProductGrid() {
     <section>
       <div className="section-head">
         <h2>搶購任務</h2>
-        <span className="hint">開賣時間相同的任務會併入同一個瀏覽器一起結帳</span>
+        <span className="hint">
+          開賣時間相同的任務會併入同一個瀏覽器一起結帳
+        </span>
         <button className="primary" onClick={() => setAddOpen(true)}>
           ＋ 新增任務
         </button>
@@ -163,13 +185,19 @@ export default function ProductGrid() {
           >
             刪除選取（{startable.length}）
           </button>
-          <button onClick={() => setSelected(new Set(products.map((p) => p.id)))}>全選</button>
+          <button
+            onClick={() => setSelected(new Set(products.map((p) => p.id)))}
+          >
+            全選
+          </button>
           <button onClick={() => setSelected(new Set())}>清除選取</button>
         </div>
       )}
 
       {products.length === 0 ? (
-        <div className="empty">尚未新增任務，按「＋ 新增任務」貼上商品網址開始</div>
+        <div className="empty">
+          尚未新增任務，按「＋ 新增任務」貼上商品網址開始
+        </div>
       ) : (
         groups.map((g) => (
           <GroupSection

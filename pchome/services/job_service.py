@@ -28,8 +28,13 @@ from .product_store import ProductStore
 _JOINABLE_PHASES = {"pending", "lead_wait", "checking_session", "monitoring"}
 # 組結束時保留的 job 終態；其餘（queued/monitoring/forsale 等中間態）重設為 idle
 _STICKY_STATES = {
-    "success", "soldout", "carted", "cart_failed",
-    "failed", "session_expired", "not_logged_in",
+    "success",
+    "soldout",
+    "carted",
+    "cart_failed",
+    "failed",
+    "session_expired",
+    "not_logged_in",
 }
 # 結帳紀錄保留的組 log 行數
 _LOG_TAIL_LINES = 40
@@ -231,7 +236,9 @@ class JobService:
             reporter.log(f"未預期錯誤: {e!r}")
             self._finish_group(group, "failed")
 
-    def _hold(self, group: RunGroup, reporter: GroupReporter, result: JobResult) -> None:
+    def _hold(
+        self, group: RunGroup, reporter: GroupReporter, result: JobResult
+    ) -> None:
         """結帳頁就緒：先寫入結帳紀錄（瀏覽器還開著就能在控制台查看），
         再保持瀏覽器開啟直到使用者按「結束」"""
         auto_paid = bool(result.checkout and result.checkout.auto_pay_clicked)
@@ -289,8 +296,13 @@ class JobService:
                     self.set_job(pid, "idle", gid=None)
         group.phase = "closed"
         self.bus.publish(
-            {"type": "group", "gid": group.gid, "phase": "closed", "status": status,
-             "member_pids": []}
+            {
+                "type": "group",
+                "gid": group.gid,
+                "phase": "closed",
+                "status": status,
+                "member_pids": [],
+            }
         )
 
     # ---- 狀態更新與快照 ----
@@ -312,13 +324,15 @@ class JobService:
         self._publish_group(group)
 
     def _publish_group(self, group: RunGroup) -> None:
-        self.bus.publish({
-            "type": "group",
-            "gid": group.gid,
-            "phase": group.phase,
-            "sale_time": group.sale_time,
-            "member_pids": group.membership.active_ids(),
-        })
+        self.bus.publish(
+            {
+                "type": "group",
+                "gid": group.gid,
+                "phase": group.phase,
+                "sale_time": group.sale_time,
+                "member_pids": group.membership.active_ids(),
+            }
+        )
 
     def remove_product(self, pid: str) -> None:
         """刪除商品卡：先取消執行中的 job 再從清單移除"""
@@ -347,13 +361,15 @@ class JobService:
         for item in self.store.list():
             pid = item["id"]
             job = self._jobs.get(pid, JobState())
-            products.append({
-                "id": pid,
-                "sale_time": item.get("sale_time", ""),
-                "state": job.state,
-                "info": job.info,
-                "gid": job.gid,
-            })
+            products.append(
+                {
+                    "id": pid,
+                    "sale_time": item.get("sale_time", ""),
+                    "state": job.state,
+                    "info": job.info,
+                    "gid": job.gid,
+                }
+            )
         with self._lock:
             groups = {
                 gid: {

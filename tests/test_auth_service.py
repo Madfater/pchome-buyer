@@ -17,10 +17,15 @@ def isolated_auth_state_file(tmp_path, monkeypatch):
 class TestConvertExtensionCookie:
     def test_maps_samesite_values(self):
         base = {"name": "n", "value": "v", "domain": "d", "expirationDate": 1.0}
-        assert _convert_extension_cookie({**base, "sameSite": "no_restriction"})[
-            "sameSite"
-        ] == "None"
-        assert _convert_extension_cookie({**base, "sameSite": "lax"})["sameSite"] == "Lax"
+        assert (
+            _convert_extension_cookie({**base, "sameSite": "no_restriction"})[
+                "sameSite"
+            ]
+            == "None"
+        )
+        assert (
+            _convert_extension_cookie({**base, "sameSite": "lax"})["sameSite"] == "Lax"
+        )
         assert (
             _convert_extension_cookie({**base, "sameSite": "strict"})["sameSite"]
             == "Strict"

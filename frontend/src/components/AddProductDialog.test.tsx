@@ -16,7 +16,9 @@ describe('AddProductDialog', () => {
 
   it('shows a parse hint while empty and disables submit', () => {
     render(<AddProductDialog open onClose={vi.fn()} />)
-    expect(screen.getByText('貼上 PChome 24h 商品頁網址，或直接輸入商品編號')).toBeInTheDocument()
+    expect(
+      screen.getByText('貼上 PChome 24h 商品頁網址，或直接輸入商品編號'),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '新增' })).toBeDisabled()
   })
 
@@ -65,7 +67,10 @@ describe('AddProductDialog', () => {
     await user.click(screen.getByRole('button', { name: '新增' }))
 
     await waitFor(() => expect(onClose).toHaveBeenCalled())
-    expect(api.addProduct).toHaveBeenCalledWith('DGCQ39-A900JESMM', '2026-03-06 12:00')
+    expect(api.addProduct).toHaveBeenCalledWith(
+      'DGCQ39-A900JESMM',
+      '2026-03-06 12:00',
+    )
   })
 
   it('shows a toast and keeps the dialog open when the API call fails', async () => {

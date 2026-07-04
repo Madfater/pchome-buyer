@@ -84,12 +84,17 @@ def main() -> None:
 
     buy_parser = subparsers.add_parser("buy", help="搶購指定商品")
     buy_parser.add_argument(
-        "product_ids", nargs="+",
+        "product_ids",
+        nargs="+",
         help="商品編號，可指定多個 (如 DGCQ39-A900JESMM DGCQ39-A900JL925)",
     )
-    buy_parser.add_argument("--headless", action="store_true", help="無頭模式（不顯示瀏覽器）")
     buy_parser.add_argument(
-        "--interval", type=float, default=DEFAULT_INTERVAL_SECS,
+        "--headless", action="store_true", help="無頭模式（不顯示瀏覽器）"
+    )
+    buy_parser.add_argument(
+        "--interval",
+        type=float,
+        default=DEFAULT_INTERVAL_SECS,
         help=f"輪詢間隔秒數（預設 {DEFAULT_INTERVAL_SECS}）",
     )
     buy_parser.add_argument(
@@ -97,14 +102,21 @@ def main() -> None:
         help='開賣時間 "YYYY-MM-DD HH:MM"；距開賣超過 --lead 秒會先睡眠等待，開賣前 15 秒才全速輪詢',
     )
     buy_parser.add_argument(
-        "--lead", type=float, default=DEFAULT_LEAD_SECS,
+        "--lead",
+        type=float,
+        default=DEFAULT_LEAD_SECS,
         help=f"搭配 --sale-time：開賣前幾秒啟動監控（預設 {DEFAULT_LEAD_SECS:.0f}）",
     )
 
-    web_parser = subparsers.add_parser("web", help="啟動網頁控制台（預設 http://127.0.0.1:8787）")
-    web_parser.add_argument("--port", type=int, default=8787, help="監聽 port（預設 8787）")
+    web_parser = subparsers.add_parser(
+        "web", help="啟動網頁控制台（預設 http://127.0.0.1:8787）"
+    )
     web_parser.add_argument(
-        "--host", default="127.0.0.1",
+        "--port", type=int, default=8787, help="監聽 port（預設 8787）"
+    )
+    web_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
         help="監聽位址（預設 127.0.0.1；遠端部署可設 0.0.0.0，請自行以反向代理保護）",
     )
 

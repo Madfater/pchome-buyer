@@ -37,34 +37,58 @@ export default function CheckoutGrid() {
       ) : (
         <div className="grid">
           {checkouts.map((r) => (
-            <CheckoutCard key={r.id} record={r} onOpen={() => setOpenId(r.id)} />
+            <CheckoutCard
+              key={r.id}
+              record={r}
+              onOpen={() => setOpenId(r.id)}
+            />
           ))}
         </div>
       )}
-      <CheckoutDetailDialog record={openRecord} onClose={() => setOpenId(null)} />
+      <CheckoutDetailDialog
+        record={openRecord}
+        onClose={() => setOpenId(null)}
+      />
     </section>
   )
 }
 
-function CheckoutCard({ record, onOpen }: { record: CheckoutRecord; onOpen: () => void }) {
+function CheckoutCard({
+  record,
+  onOpen,
+}: {
+  record: CheckoutRecord
+  onOpen: () => void
+}) {
   const okCount = record.cart_results.filter((r) => r.ok).length
   const total = record.payinfo?.total || lastProdTotal(record)
 
   return (
     <div
       className="card"
-      style={{ '--gcolor': groupColor(saleTimeKey(record.sale_time)) } as React.CSSProperties}
+      style={
+        {
+          '--gcolor': groupColor(saleTimeKey(record.sale_time)),
+        } as React.CSSProperties
+      }
     >
       <div className="top-row">
-        <span className="pid">{record.sale_time || record.created_at.replace('T', ' ')}</span>
+        <span className="pid">
+          {record.sale_time || record.created_at.replace('T', ' ')}
+        </span>
       </div>
       <div className="sale">{record.created_at.replace('T', ' ')}</div>
       <div className="row">
-        <span className={`status ${record.status === 'cart_failed' ? 'err' : record.completed ? 'ok' : 'warn'}`}>
-          {record.completed ? '已完成' : (CHECKOUT_STATUS_LABEL[record.status] ?? record.status)}
+        <span
+          className={`status ${record.status === 'cart_failed' ? 'err' : record.completed ? 'ok' : 'warn'}`}
+        >
+          {record.completed
+            ? '已完成'
+            : (CHECKOUT_STATUS_LABEL[record.status] ?? record.status)}
         </span>
         <span className="info">
-          成功 {okCount}/{record.cart_results.length} 件{total ? `，$${total}` : ''}
+          成功 {okCount}/{record.cart_results.length} 件
+          {total ? `，$${total}` : ''}
         </span>
       </div>
       <div className="row">

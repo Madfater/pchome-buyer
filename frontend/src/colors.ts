@@ -1,5 +1,12 @@
 // 同 sale_time 的卡片共用一個顏色（同時間會合併結帳）
-const GROUP_COLORS = ['#2563eb', '#d97706', '#16a34a', '#db2777', '#7c3aed', '#0d9488']
+const GROUP_COLORS = [
+  '#2563eb',
+  '#d97706',
+  '#16a34a',
+  '#db2777',
+  '#7c3aed',
+  '#0d9488',
+]
 
 const assigned = new Map<string, string>()
 

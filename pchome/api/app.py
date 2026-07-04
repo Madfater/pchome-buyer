@@ -17,13 +17,20 @@ def create_app(dist_dir: Path = FRONTEND_DIST) -> FastAPI:
     app = FastAPI(title="PChome 搶購控制台")
     app.state.container = build_container()
 
-    for router in (products.router, jobs.router, auth.router, checkouts.router, events.router):
+    for router in (
+        products.router,
+        jobs.router,
+        auth.router,
+        checkouts.router,
+        events.router,
+    ):
         app.include_router(router)
 
     # API 路由先註冊；前端建置產物掛在根路徑接住其餘請求
     if (dist_dir / "index.html").exists():
         app.mount("/", StaticFiles(directory=dist_dir, html=True), name="ui")
     else:
+
         @app.get("/")
         def index_missing():
             return PlainTextResponse(

@@ -79,7 +79,9 @@ class TestEmptyMembership:
 class TestReadyDetection:
     def test_returns_ready_ids_on_first_poll(self):
         page = FakePage([[_forsale("A-1", qty=3)]])
-        result = wait_for_sale(page, GroupMembership(["A-1"]), 0.01, None, FakeReporter())
+        result = wait_for_sale(
+            page, GroupMembership(["A-1"]), 0.01, None, FakeReporter()
+        )
         assert result == ["A-1"]
         assert page.goto_calls  # 有先導向商品頁
 
@@ -92,7 +94,9 @@ class TestReadyDetection:
 
     def test_polls_multiple_rounds_until_forsale(self):
         page = FakePage([[_notready("A-1")], [_forsale("A-1")]])
-        result = wait_for_sale(page, GroupMembership(["A-1"]), 0.01, None, FakeReporter())
+        result = wait_for_sale(
+            page, GroupMembership(["A-1"]), 0.01, None, FakeReporter()
+        )
         assert result == ["A-1"]
         assert page.poll_count == 2
 
@@ -112,7 +116,9 @@ class TestCancellation:
         cancel.set()
         page = FakePage([[_notready("A-1")]])
         with pytest.raises(JobCancelled):
-            wait_for_sale(page, GroupMembership(["A-1"]), 0.01, None, FakeReporter(), cancel)
+            wait_for_sale(
+                page, GroupMembership(["A-1"]), 0.01, None, FakeReporter(), cancel
+            )
         assert page.poll_count == 0
 
     def test_membership_emptied_mid_poll_raises_cancelled(self):
@@ -147,7 +153,9 @@ class TestSaleTimePolling:
     def test_far_from_sale_time_uses_slow_interval(self, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            monitor_module, "cancellable_sleep", lambda secs, cancel=None: captured.append(secs)
+            monitor_module,
+            "cancellable_sleep",
+            lambda secs, cancel=None: captured.append(secs),
         )
         import time
 
@@ -161,7 +169,9 @@ class TestSaleTimePolling:
     def test_near_sale_time_uses_fast_interval(self, monkeypatch):
         captured = []
         monkeypatch.setattr(
-            monitor_module, "cancellable_sleep", lambda secs, cancel=None: captured.append(secs)
+            monitor_module,
+            "cancellable_sleep",
+            lambda secs, cancel=None: captured.append(secs),
         )
         import time
 

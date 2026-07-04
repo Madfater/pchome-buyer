@@ -2,7 +2,15 @@ def test_add_product_by_bare_id(client):
     resp = client.post("/api/products", json={"ref": "dgcq39-a900jesmm"})
     assert resp.status_code == 200
     products = resp.json()["products"]
-    assert products == [{"id": "DGCQ39-A900JESMM", "sale_time": "", "state": "idle", "info": "", "gid": None}]
+    assert products == [
+        {
+            "id": "DGCQ39-A900JESMM",
+            "sale_time": "",
+            "state": "idle",
+            "info": "",
+            "gid": None,
+        }
+    ]
 
 
 def test_add_product_by_url(client):
@@ -58,7 +66,9 @@ def test_update_sale_time_while_active_returns_409(client, container, monkeypatc
 
     ready = threading.Event()
 
-    def fake_run(cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None):
+    def fake_run(
+        cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None
+    ):
         reporter.phase("monitoring")
         ready.set()
         if cancel is not None:

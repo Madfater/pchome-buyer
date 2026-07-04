@@ -3,7 +3,13 @@ import { cancelJobs, removeProduct, startJobs } from '../api'
 import { groupColor, saleTimeKey } from '../colors'
 import { useAppState, useApplySnapshot } from '../state'
 import { useToast } from '../toast'
-import { ACTIVE_STATES, GROUP_PHASE_LABEL, STATE_CLASS, STATE_LABEL, type Product } from '../types'
+import {
+  ACTIVE_STATES,
+  GROUP_PHASE_LABEL,
+  STATE_CLASS,
+  STATE_LABEL,
+  type Product,
+} from '../types'
 import ConfirmDialog from './ConfirmDialog'
 import EditSaleTimeDialog from './EditSaleTimeDialog'
 
@@ -35,10 +41,19 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
   return (
     <div
       className={`card${selected ? ' selected' : ''}`}
-      style={{ '--gcolor': groupColor(saleTimeKey(product.sale_time)) } as React.CSSProperties}
+      style={
+        {
+          '--gcolor': groupColor(saleTimeKey(product.sale_time)),
+        } as React.CSSProperties
+      }
     >
       <div className="top-row">
-        <input type="checkbox" checked={selected} onChange={onToggle} aria-label="選取任務" />
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          aria-label="選取任務"
+        />
         <span className="pid">{product.id}</span>
         <button
           className="edit"
@@ -71,12 +86,18 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
               結束（關閉瀏覽器）
             </button>
           ) : (
-            <button className="danger" onClick={() => call(() => cancelJobs([product.id]))}>
+            <button
+              className="danger"
+              onClick={() => call(() => cancelJobs([product.id]))}
+            >
               取消
             </button>
           )
         ) : (
-          <button className="primary" onClick={() => call(() => startJobs([product.id]))}>
+          <button
+            className="primary"
+            onClick={() => call(() => startJobs([product.id]))}
+          >
             開始
           </button>
         )}
@@ -87,7 +108,11 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
           {group.progress ? ` — ${group.progress}` : ''}
         </div>
       )}
-      <EditSaleTimeDialog open={editOpen} product={product} onClose={() => setEditOpen(false)} />
+      <EditSaleTimeDialog
+        open={editOpen}
+        product={product}
+        onClose={() => setEditOpen(false)}
+      />
       <ConfirmDialog
         open={confirm === 'remove'}
         title="刪除任務"

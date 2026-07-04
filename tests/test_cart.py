@@ -38,7 +38,10 @@ class FakePage:
 
 def _ok(pid, prodcount=1, prodtotal=100):
     return {
-        "pid": pid, "ok": True, "soldOut": False, "stage": "modify",
+        "pid": pid,
+        "ok": True,
+        "soldOut": False,
+        "stage": "modify",
         "resp": {"PRODCOUNT": prodcount, "PRODTOTAL": prodtotal},
     }
 
@@ -48,19 +51,37 @@ def _soldout(pid):
 
 
 def _snapup_fail(pid):
-    return {"pid": pid, "ok": False, "soldOut": False, "stage": "snapup", "resp": {"err": 1}}
+    return {
+        "pid": pid,
+        "ok": False,
+        "soldOut": False,
+        "stage": "snapup",
+        "resp": {"err": 1},
+    }
 
 
 def _modify_fail(pid):
-    return {"pid": pid, "ok": False, "soldOut": False, "stage": "modify", "error": "boom"}
+    return {
+        "pid": pid,
+        "ok": False,
+        "soldOut": False,
+        "stage": "modify",
+        "error": "boom",
+    }
 
 
 class TestToResult:
     def test_maps_success_fields(self):
         r = _to_result(_ok("A-1", prodcount=3, prodtotal=999))
         assert r == CartItemResult(
-            pid="A-1", ok=True, sold_out=False, stage="modify",
-            prodcount=3, prodtotal=999, raw_resp={"PRODCOUNT": 3, "PRODTOTAL": 999}, error="",
+            pid="A-1",
+            ok=True,
+            sold_out=False,
+            stage="modify",
+            prodcount=3,
+            prodtotal=999,
+            raw_resp={"PRODCOUNT": 3, "PRODTOTAL": 999},
+            error="",
         )
 
     def test_handles_non_dict_resp(self):
@@ -85,9 +106,16 @@ class TestAddToCartBatch:
         assert item["cart"]["TI"] == "A-1-000"
         assert item["cart"]["RS"] == "STOREX"
         assert item["cart"] == {
-            "G": [], "A": [], "B": [], "C": [],
-            "TB": "24H", "TP": 2, "T": "ADD",
-            "TI": "A-1-000", "RS": "STOREX", "YTQ": 1,
+            "G": [],
+            "A": [],
+            "B": [],
+            "C": [],
+            "TB": "24H",
+            "TP": 2,
+            "T": "ADD",
+            "TI": "A-1-000",
+            "RS": "STOREX",
+            "YTQ": 1,
         }
         assert page.last_args["modifyApi"] == CART_MODIFY_API
 

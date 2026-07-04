@@ -20,7 +20,9 @@ uv run python main.py buy DGCQ39-A900JESMM [--headless] [--interval 0.3] \
 # 檢查（改完必跑對應項；純邏輯測試只覆蓋不碰瀏覽器/網路的模組，行為改動仍要實跑驗證）
 uv run pytest                           # 改了 core/timing、services/product_id、core/membership、services/auth_service 必跑
 uv run --with pyright pyright pchome    # 改了 Python 必跑
+uv run ruff format .                    # 改了 Python 必跑（格式化）
 npm --prefix frontend run lint          # 改了前端必跑（oxlint）
+npm --prefix frontend run format        # 改了前端必跑（格式化，prettier）
 npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢查）
 npm --prefix frontend run test          # 改了 frontend/src 必跑（Vitest + React Testing Library）
 

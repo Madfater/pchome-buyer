@@ -46,7 +46,13 @@ def live_server(container):
 
     app = FastAPI()
     app.state.container = container
-    for router in (products.router, jobs.router, auth.router, checkouts.router, events.router):
+    for router in (
+        products.router,
+        jobs.router,
+        auth.router,
+        checkouts.router,
+        events.router,
+    ):
         app.include_router(router)
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="ui")
 

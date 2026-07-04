@@ -51,19 +51,24 @@ def add_to_cart_batch(
     """
     items = []
     for pid in product_ids:
-        items.append({
-            "pid": pid,
-            "snapupUrl": SNAPUP_API.format(product_id=pid),
-            "cart": {
-                "G": [], "A": [], "B": [], "C": [],
-                "TB": "24H",
-                "TP": 2,
-                "T": "ADD",
-                "TI": f"{pid}-000",
-                "RS": stores[pid],
-                "YTQ": 1,
-            },
-        })
+        items.append(
+            {
+                "pid": pid,
+                "snapupUrl": SNAPUP_API.format(product_id=pid),
+                "cart": {
+                    "G": [],
+                    "A": [],
+                    "B": [],
+                    "C": [],
+                    "TB": "24H",
+                    "TP": 2,
+                    "T": "ADD",
+                    "TI": f"{pid}-000",
+                    "RS": stores[pid],
+                    "YTQ": 1,
+                },
+            }
+        )
     return page.evaluate(ADD_TO_CART_JS, {"items": items, "modifyApi": CART_MODIFY_API})
 
 
@@ -113,10 +118,7 @@ def add_with_retry(
                 )
                 # modify 已序列執行，件數應嚴格遞增；否則表示商品互相覆蓋
                 count = resp.get("PRODCOUNT")
-                if (
-                    prev_count is not None and count is not None
-                    and count <= prev_count
-                ):
+                if prev_count is not None and count is not None and count <= prev_count:
                     reporter.log(
                         f"警告: {pid} 加車後件數未增加（{prev_count} → {count}），"
                         "先前商品可能已被覆蓋，結帳前請確認購物車內容"
@@ -142,7 +144,9 @@ def add_with_retry(
         if not pending:
             break
         if attempt < MAX_RETRIES:
-            reporter.log(f"重試加入購物車 ({attempt}/{MAX_RETRIES}): {', '.join(pending)}")
+            reporter.log(
+                f"重試加入購物車 ({attempt}/{MAX_RETRIES}): {', '.join(pending)}"
+            )
             cancellable_sleep(RETRY_DELAY_SECS, cancel)
 
     for pid in pending:

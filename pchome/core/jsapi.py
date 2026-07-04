@@ -22,7 +22,8 @@ JSONP_JS = """
 # 批次加入購物車：snapup fetch 並行取得所有 MAC（效期 15 秒），
 # 但 cart modify 必須「逐一序列」執行 —— PChome 的購物車寫入是整車覆蓋
 # （last-write-wins），並行 modify 會互相蓋掉，只有最後一個商品留在車上。
-ADD_TO_CART_JS = """
+ADD_TO_CART_JS = (
+    """
 (args) => {
     const jsonp = %s;
     return (async () => {
@@ -65,4 +66,6 @@ ADD_TO_CART_JS = """
         return results;
     })();
 }
-""" % JSONP_JS
+"""
+    % JSONP_JS
+)

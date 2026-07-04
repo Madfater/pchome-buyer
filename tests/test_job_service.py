@@ -28,7 +28,9 @@ def install_fake_run(monkeypatch, phase="monitoring"):
     """把 run_snapup_job 換成：進入指定 phase、發訊號、卡在 cancel.wait() 直到被取消"""
     ready = threading.Event()
 
-    def fake_run(cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None):
+    def fake_run(
+        cfg, reporter, *, membership=None, checkout_lock=None, cancel=None, hold=None
+    ):
         reporter.phase(phase)
         ready.set()
         if cancel is not None:

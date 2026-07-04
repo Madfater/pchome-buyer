@@ -28,7 +28,10 @@ describe('Dialog', () => {
       </Dialog>,
     )
 
-    screen.getByText('內容').closest('dialog')!.dispatchEvent(new Event('close'))
+    screen
+      .getByText('內容')
+      .closest('dialog')!
+      .dispatchEvent(new Event('close'))
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
@@ -68,6 +71,8 @@ describe('Dialog', () => {
         內容
       </Dialog>,
     )
-    expect(screen.getByText('內容').closest('dialog')).toHaveClass('dialog-wide')
+    expect(screen.getByText('內容').closest('dialog')).toHaveClass(
+      'dialog-wide',
+    )
   })
 })

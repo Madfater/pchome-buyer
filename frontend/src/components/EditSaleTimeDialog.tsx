@@ -25,7 +25,9 @@ export default function EditSaleTimeDialog({ open, product, onClose }: Props) {
   const submit = async () => {
     setBusy(true)
     try {
-      applySnapshot(await updateSaleTime(product.id, saleTime.replace('T', ' ')))
+      applySnapshot(
+        await updateSaleTime(product.id, saleTime.replace('T', ' ')),
+      )
       onClose()
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e))

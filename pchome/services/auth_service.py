@@ -79,13 +79,17 @@ class AuthService:
             return ImportResult(
                 ok=False,
                 error="無法辨識格式：請貼上 auth_state.json 內容，"
-                      "或瀏覽器擴充功能匯出的 cookie 陣列",
+                "或瀏覽器擴充功能匯出的 cookie 陣列",
             )
 
         pchome_count = sum(
             1 for c in state["cookies"] if "pchome.com.tw" in c.get("domain", "")
         )
-        warning = "" if pchome_count else "警告：找不到任何 pchome.com.tw 的 cookie，登入可能無效"
+        warning = (
+            ""
+            if pchome_count
+            else "警告：找不到任何 pchome.com.tw 的 cookie，登入可能無效"
+        )
 
         AUTH_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
         with self._lock:

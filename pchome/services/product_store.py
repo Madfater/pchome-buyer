@@ -11,9 +11,7 @@ class ProductStore:
     def __init__(self, path: Path):
         self._path = path
         self._lock = threading.Lock()
-        self._items: list[dict] = (
-            json.loads(path.read_text()) if path.exists() else []
-        )
+        self._items: list[dict] = json.loads(path.read_text()) if path.exists() else []
 
     def list(self) -> list[dict]:
         with self._lock:
@@ -42,6 +40,4 @@ class ProductStore:
             self._save()
 
     def _save(self) -> None:
-        self._path.write_text(
-            json.dumps(self._items, ensure_ascii=False, indent=2)
-        )
+        self._path.write_text(json.dumps(self._items, ensure_ascii=False, indent=2))

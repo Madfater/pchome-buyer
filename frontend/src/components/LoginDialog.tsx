@@ -67,8 +67,8 @@ export default function LoginDialog({ open, onClose }: Props) {
     <Dialog open={open} onClose={onClose}>
       <h3>匯入登入憑證</h3>
       <p className="hint" style={{ margin: 0 }}>
-        在本機執行 <code>python main.py login</code> 後貼上 auth_state.json 的內容，
-        或貼上瀏覽器擴充功能（Cookie-Editor 等）匯出的 cookie JSON。
+        在本機執行 <code>python main.py login</code> 後貼上 auth_state.json
+        的內容， 或貼上瀏覽器擴充功能（Cookie-Editor 等）匯出的 cookie JSON。
       </p>
       <label>
         憑證內容（JSON）
@@ -85,8 +85,12 @@ export default function LoginDialog({ open, onClose }: Props) {
       {result && (
         <div className="import-result">
           <span className="ok-text">
-            匯入成功（{result.format === 'storage_state' ? 'storage state' : 'cookie 陣列'}，
-            共 {result.cookie_count} 個 cookie，PChome {result.pchome_cookie_count} 個）
+            匯入成功（
+            {result.format === 'storage_state'
+              ? 'storage state'
+              : 'cookie 陣列'}
+            ， 共 {result.cookie_count} 個 cookie，PChome{' '}
+            {result.pchome_cookie_count} 個）
           </span>
           {result.warning && <div className="warn-text">{result.warning}</div>}
         </div>
@@ -97,7 +101,11 @@ export default function LoginDialog({ open, onClose }: Props) {
           {checking ? '檢查中…' : '檢查 session'}
         </button>
         <button onClick={onClose}>關閉</button>
-        <button className="primary" onClick={doImport} disabled={busy || !payload.trim()}>
+        <button
+          className="primary"
+          onClick={doImport}
+          disabled={busy || !payload.trim()}
+        >
           {busy ? '匯入中…' : '匯入'}
         </button>
       </div>

@@ -18,14 +18,16 @@ class FakePage:
 
 class TestParseSaleTime:
     def test_parses_with_seconds(self):
-        assert parse_sale_time("2026-03-06 12:00:30") == datetime(
-            2026, 3, 6, 12, 0, 30
-        ).timestamp()
+        assert (
+            parse_sale_time("2026-03-06 12:00:30")
+            == datetime(2026, 3, 6, 12, 0, 30).timestamp()
+        )
 
     def test_parses_without_seconds(self):
-        assert parse_sale_time("2026-03-06 12:00") == datetime(
-            2026, 3, 6, 12, 0, 0
-        ).timestamp()
+        assert (
+            parse_sale_time("2026-03-06 12:00")
+            == datetime(2026, 3, 6, 12, 0, 0).timestamp()
+        )
 
     @pytest.mark.parametrize(
         "value",

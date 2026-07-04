@@ -22,7 +22,9 @@ describe('LoginDialog', () => {
 
     expect(screen.getByRole('button', { name: '匯入' })).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), { target: { value: '{"cookies": []}' } })
+    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), {
+      target: { value: '{"cookies": []}' },
+    })
 
     expect(screen.getByRole('button', { name: '匯入' })).toBeEnabled()
   })
@@ -39,11 +41,17 @@ describe('LoginDialog', () => {
     const user = userEvent.setup()
     render(<LoginDialog open onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), { target: { value: '{"cookies": []}' } })
+    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), {
+      target: { value: '{"cookies": []}' },
+    })
     await user.click(screen.getByRole('button', { name: '匯入' }))
 
-    const result = await screen.findByText((_, el) => el?.className === 'ok-text')
-    expect(result.textContent?.replace(/\s+/g, ' ')).toBe('匯入成功（storage state， 共 3 個 cookie，PChome 2 個）')
+    const result = await screen.findByText(
+      (_, el) => el?.className === 'ok-text',
+    )
+    expect(result.textContent?.replace(/\s+/g, ' ')).toBe(
+      '匯入成功（storage state， 共 3 個 cookie，PChome 2 個）',
+    )
     expect(dispatchSpy).toHaveBeenCalledWith({
       type: 'auth',
       auth: { has_auth_state: true, session_valid: null, checked_at: null },
@@ -62,10 +70,16 @@ describe('LoginDialog', () => {
     const user = userEvent.setup()
     render(<LoginDialog open onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), { target: { value: '[]' } })
+    fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), {
+      target: { value: '[]' },
+    })
     await user.click(screen.getByRole('button', { name: '匯入' }))
 
-    expect(await screen.findByText('警告：找不到任何 pchome.com.tw 的 cookie，登入可能無效')).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        '警告：找不到任何 pchome.com.tw 的 cookie，登入可能無效',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('shows a toast on import failure without touching auth state', async () => {
@@ -91,7 +105,9 @@ describe('LoginDialog', () => {
 
     await user.click(screen.getByRole('button', { name: '檢查 session' }))
 
-    expect(await screen.findByText('session 有效，可以開始搶購')).toBeInTheDocument()
+    expect(
+      await screen.findByText('session 有效，可以開始搶購'),
+    ).toBeInTheDocument()
     expect(api.fetchAuthStatus).toHaveBeenCalledWith(true)
     expect(dispatchSpy).toHaveBeenCalledWith({
       type: 'auth',
@@ -110,17 +126,25 @@ describe('LoginDialog', () => {
 
     await user.click(screen.getByRole('button', { name: '檢查 session' }))
 
-    expect(await screen.findByText('session 無效或已過期，請重新匯入')).toBeInTheDocument()
+    expect(
+      await screen.findByText('session 無效或已過期，請重新匯入'),
+    ).toBeInTheDocument()
   })
 
   it('reads payload from a selected file', async () => {
     const user = userEvent.setup()
     render(<LoginDialog open onClose={vi.fn()} />)
 
-    const file = new File(['{"cookies": [{"name": "a"}]}'], 'auth_state.json', { type: 'application/json' })
+    const file = new File(['{"cookies": [{"name": "a"}]}'], 'auth_state.json', {
+      type: 'application/json',
+    })
     const input = screen.getByLabelText('或選擇檔案')
     await user.upload(input, file)
 
-    await waitFor(() => expect(screen.getByLabelText('憑證內容（JSON）')).toHaveValue('{"cookies": [{"name": "a"}]}'))
+    await waitFor(() =>
+      expect(screen.getByLabelText('憑證內容（JSON）')).toHaveValue(
+        '{"cookies": [{"name": "a"}]}',
+      ),
+    )
   })
 })

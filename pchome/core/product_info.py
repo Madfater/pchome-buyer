@@ -59,10 +59,14 @@ def resolve_store_codes(
             except Exception as e:
                 fetched = {}
                 if reporter:
-                    reporter.log(f"店碼查詢失敗（{e}），改用商品 ID 前綴，商品可能無法結帳")
+                    reporter.log(
+                        f"店碼查詢失敗（{e}），改用商品 ID 前綴，商品可能無法結帳"
+                    )
             for pid, store in fetched.items():
                 if store != _fallback(pid) and reporter:
-                    reporter.log(f"{pid} 實際店碼為 {store}（與 ID 前綴 {_fallback(pid)} 不同）")
+                    reporter.log(
+                        f"{pid} 實際店碼為 {store}（與 ID 前綴 {_fallback(pid)} 不同）"
+                    )
                 _cache[pid] = store
         # 查詢失敗者不寫入快取（下次呼叫會重試），本次以 ID 前綴退回
         return {pid: _cache.get(pid, _fallback(pid)) for pid in product_ids}
