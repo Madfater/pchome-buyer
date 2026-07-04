@@ -4,9 +4,9 @@
 
 ## 三件使用者沒問、但你該知道的事
 
-### 1. 這個專案最大的槓桿是「補一套純邏輯測試」，而且很便宜
+### 1.（已完成，2026-07-04）這個專案最大的槓桿曾是「補一套純邏輯測試」，而且很便宜
 
-現在零測試，所以每次「完成」都要靠 agent 實跑驗證，貴且慢。但這個 codebase 有一批不碰網路、不碰瀏覽器的純函式，一小時內就能鋪出測試安全網：`core/timing.py`（`parse_sale_time` 各種格式與錯誤輸入）、`services/product_id.py`（URL/裸 ID 解析）、`core/membership.py`（join/leave/freeze 語意）、`services/auth_service.py` 的 cookie 格式轉換（extension 格式 → storage_state）。有了它，弱模型的驗證迴圈從「派 agent 實跑」降級成「uv run pytest」，R2 的成本大幅下降。**建議下一個空閒 session 主動向使用者提議做這件事。**（提議，不是擅自做——這會新增依賴。）
+已於 2026-07-04 另一 session 完成：`uv add --dev pytest`，`tests/` 覆蓋 `core/timing.py`（`parse_sale_time` 各種格式與錯誤輸入）、`services/product_id.py`（URL/裸 ID 解析）、`core/membership.py`（join/leave/freeze 語意）、`services/auth_service.py`（cookie 格式轉換 + `AUTH_STATE_FILE` 用 monkeypatch 隔離、絕不寫真實檔案）。45 個測試，`uv run pytest` 綠燈，`pyright` 也過。以後改這四個模組先跑 `uv run pytest`，比派 agent 實跑便宜很多——R2 的驗證成本因此下降。細節見 [architecture.md](architecture.md) 的 `tests/` 段。
 
 ### 2. 這個工具花真錢，而且錢的入口比你以為的多
 
@@ -32,7 +32,6 @@
 
 ## 未完成交接
 
-一次性待辦（下一個 session 順手做，做完把本條刪掉）：
-- 實測 `verifier` 與 `deep-reviewer` 出現在可用 agent 清單且派得動（它們是 2026-07-04 當個 session 安裝的，當時無法即時生效）。順便觀察 `model: opus` / `effort: high` 是否真的生效（deep-reviewer 的回報深度應明顯高於 sonnet 預設）；若欄位沒被採用，回報使用者。
+（無。上一條「實測 verifier / deep-reviewer」已於 2026-07-04 另一 session 完成，見 10-model-dispatch.md 教訓紀錄。）
 
 （2026-07-04 制度建立 session：A–G 與收尾全部完成，經 opus 對抗審查修正 5 處。若你因中斷接手，先跑收尾三步：對抗審查、read-back、給使用者總結。）

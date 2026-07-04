@@ -78,3 +78,4 @@ cp docs/claude/agents/*.md .claude/agents/
 ## 教訓紀錄
 
 - 2026-07-04 | 症狀: 剛 cp 進 `.claude/agents/` 的 agent 立刻派工報「Agent type not found」 | 根因: agent 清單在 session 啟動時載入，session 中新增不生效 | 規則: 當前 session 要用剛裝的 agent 時，改派 `general-purpose` 並在 prompt 開頭貼上該定義檔的規則內文、`model` 參數照定義檔設（effort 無法補，接受差異）。
+- 2026-07-04 | 症狀: 上一條教訓記錄「當前 session 派不動新裝 agent」，不確定下個 session 是否真的解決 | 根因: 新 session 啟動時重新載入 agent 清單，`verifier`/`deep-reviewer` 這次直接出現在可用清單裡，兩者都成功派工完成任務 | 規則: 新 session（非剛裝當下）可直接派 `verifier`/`deep-reviewer`，不必再繞 `general-purpose`。`effort: high` 疑似有生效——deep-reviewer 對一條致命不變量做對抗審查，主動戳出「查詢失敗會退回被禁止的前綴拆解」這個程式碼與文件措辭不一致之處，深度超出向 sonnet 直接提問的預期；但無法用同一問題對比 sonnet 基準來確認因果，僅為觀察不是嚴格驗證。

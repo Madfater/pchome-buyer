@@ -17,7 +17,8 @@ uv run python main.py login             # 有頭瀏覽器手動登入 → auth_s
 uv run python main.py buy DGCQ39-A900JESMM [--headless] [--interval 0.3] \
     [--sale-time "2026-03-06 12:00"] [--lead 600]
 
-# 檢查（無測試套件——這三個是唯一的自動 gate，改完必跑對應項）
+# 檢查（改完必跑對應項；純邏輯測試只覆蓋不碰瀏覽器/網路的模組，行為改動仍要實跑驗證）
+uv run pytest                           # 改了 core/timing、services/product_id、core/membership、services/auth_service 必跑
 uv run --with pyright pyright pchome    # 改了 Python 必跑
 npm --prefix frontend run lint          # 改了前端必跑（oxlint）
 npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢查）
@@ -49,7 +50,7 @@ npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢
 | session 開始接手不熟的狀況 | [docs/claude/50-letter.md](docs/claude/50-letter.md) |
 | 想知道這套制度為什麼長這樣 | [docs/claude/00-diagnosis.md](docs/claude/00-diagnosis.md) |
 
-**每個 session 的底線**（詳細判準在 20-judgment-rubrics.md）：改 Python 跑 pyright、改前端跑 lint+build；行為改動要被實際執行過才算完成；驗收派 fresh-context agent，不自驗；教訓寫回對應檔案的「教訓紀錄」段。
+**每個 session 的底線**（詳細判準在 20-judgment-rubrics.md）：改 Python 跑 pyright（動到純邏輯模組另跑 `uv run pytest`）、改前端跑 lint+build；行為改動要被實際執行過才算完成；驗收派 fresh-context agent，不自驗；教訓寫回對應檔案的「教訓紀錄」段。
 
 ## 環境
 

@@ -49,6 +49,24 @@
 - `src/components/` — `TopBar`（auth 徽章 + `LoginDialog` cookie 貼上/上傳）、`ProductGrid`（勾選＋批次列＋`AddProductDialog` URL/ID＋datetime）、`ProductCard`（依狀態顯示 開始/取消/結束，group 色條以 sale_time 為 key）、`CheckoutGrid`/`CheckoutDetailDialog`（購物車結果表、payinfo 擷取、log 尾巴、標記完成/清除已完成）、`LogPanel`（可按 group 過濾）。
 - Vite dev server 把 `/api` proxy 到 `127.0.0.1:8787`（`vite.config.ts`）。
 
+## `tests/` — 純邏輯測試（`uv run pytest`，192 個測試）
+
+- 不碰真實瀏覽器/網路/檔案系統：`test_timing.py`、`test_product_id.py`、`test_membership.py`、`test_cancel.py`、`test_event_bus.py`、`test_config.py`、`test_cli_helpers.py`。
+- 檔案系統類用 `tmp_path` 隔離：`test_product_store.py`、`test_checkout_store.py`；`test_auth_service.py`、`test_session.py` 額外用 `monkeypatch` 換掉 `AUTH_STATE_FILE`，絕不寫真實 `auth_state.json`。
+- 網路類用 fake：`test_product_info.py`（monkeypatch `_fetch_stores`／`urllib.request.urlopen`，涵蓋 RS 查詢/快取/fallback 語意——保護 CLAUDE.md 不變量 #2）、`test_cart.py`（`FakePage.evaluate()` 回放批次結果，涵蓋 `add_with_retry` 重試/售完/PRODCOUNT 未遞增警告——不變量 #3/#6）。
+- 碰 Playwright `page` 的模組改用「符合介面的 fake page/locator」隔離，不啟動真實瀏覽器：`test_monitor.py`（`wait_for_sale` 的輪詢/開賣判定/慢速→全速切換/動態成員加減）、`test_checkout.py`（`go_to_checkout` 的 CVC 填寫/AUTO_PAY 點擊/payinfo 擷取，含擷取失敗不可中斷付款流程——不變量 #10）、`test_runner.py`（`run_snapup_job` 的未登入早退路徑、`_wait_until_lead`、`_log_header`）。
+- `test_session.py` 進一步用「符合 `sync_playwright()` 回傳形狀的 fake `p`/`chromium`/`browser`/`context`/`page`」（`FakeSyncPlaywright` 等）monkeypatch 掉 `session.sync_playwright` 本身，涵蓋 `check_session`（登入導轉判斷）、`login_flow`（導頁→點登入→等待→`save_auth_state`→關瀏覽器的順序與副作用）、`check_session_standalone`（無 auth state 時完全不啟動 Playwright；有 auth state 時以 `headless=True`／`storage_state=AUTH_STATE_FILE` 建 context 並委派給 `check_session`；`browser.close()` 在 `check_session` 拋例外時仍會執行——`try/finally` 語意）。全專案已無「非要真開瀏覽器不可才能測」的核心模組。
+- `test_job_service.py` 用假 `run_snapup_job`（monkeypatch，卡在 `cancel.wait()` 模擬監控中）測 run-group 的 join/skip/cancel/holding 語意；執行緒測試用 `threading.Event` 同步，不靠 `sleep` 賭時序。
+- **`test_api_*.py`**（`test_api_products.py`/`test_api_jobs.py`/`test_api_auth.py`/`test_api_checkouts.py`/`test_api_events.py`）用 FastAPI `TestClient`（`conftest.py` 的 `client`/`container`/`app` fixture，`dev` 依賴新增 `httpx`）打完整 routers，驗證狀態碼與 `Container.state()` 快照形狀；`container` fixture 把 `ProductStore`/`CheckoutRecordStore`/`AUTH_STATE_FILE` 全部指向 `tmp_path`，**不透過 `create_app()`/`build_container()`**（那兩者會綁定專案根目錄的真實 `products.json`/`checkouts.json`/`auth_state.json`）。
+  - 教訓：`AUTH_STATE_FILE` 在 `auth_service.py` 與 `session.py` 是各自獨立 `import` 的模組級名稱，只 monkeypatch 其中一個會讓 `has_auth_state()` 仍讀到真實檔案——`conftest.py` 的 `container` fixture 兩邊都換。
+  - **`GET /api/events`（SSE）刻意不測**：`StreamingResponse` 的同步 generator 卡在 `queue.get(timeout=15)`，用 `TestClient.stream()` 消費時無法可靠地立即取消底層執行緒，實測會讓整個 `uv run pytest`（必跑 CI gate）掛住超過 2 分鐘——別再嘗試用 TestClient 測這支 endpoint，只測 `GET /api/state`。
+- 尚未覆蓋且不打算補：`GET /api/events` 串流本身（見上）、前端 TypeScript（無測試框架，需另外評估要不要引入）。
+
 ## 教訓紀錄
 
 （踩坑後依 [40-maintenance.md](40-maintenance.md) 格式追加於此）
+
+- 2026-07-05 | 症狀: 幫 FastAPI routers 補測試時，`GET /api/auth/status` 明明用 `monkeypatch` 換了 `AUTH_STATE_FILE` 卻仍回報專案根目錄真實 `auth_state.json` 存在 | 根因: `AUTH_STATE_FILE` 在 `services/auth_service.py` 與 `core/session.py` 是各自獨立 `from .config import AUTH_STATE_FILE` 出來的模組級名稱，`has_auth_state()`/`check_session_standalone()` 走 `session.py` 那份，只 patch `auth_service` 那份不會生效 | 規則: 任何要隔離 `AUTH_STATE_FILE` 的測試，兩個模組的綁定都要 monkeypatch（見 `tests/conftest.py` 的 `container` fixture）。
+- 2026-07-05 | 症狀: 想用 `TestClient.stream()` 測 `GET /api/events`（SSE），實跑後 `uv run pytest` 整個掛住超過 2 分鐘、`timeout` 包裝也攔不住 | 根因: `events.py` 的 SSE generator 是同步函式卡在 `queue.get(timeout=15)`，交給 starlette 丟到 threadpool 執行；`TestClient` 提前結束 `with client.stream()` 區塊時無法可靠取消該背景執行緒 | 規則: 不要用 `TestClient` 測真正的串流 endpoint，只測回傳快照的 `GET /api/state`；SSE 串流本身留給實跑（開瀏覽器連 `/api/events` 觀察）驗證。
+- 2026-07-05 | 症狀: 幫 `login_flow` 補測試時只各自斷言「goto 發生過」「click 發生過」「wait_for_user 發生過」「save_auth_state 發生過」，fresh-context verifier 用 mutation testing（把原始碼 `wait_for_user()`/`save_auth_state()` 呼叫順序對調）發現測試仍全過——證明「各自發生過一次」測不出「順序錯了」這種 bug | 根因: 各項副作用記在各自獨立的變數（`waited`/`page.clicked`/`browser.closed`），沒有共用一份按時間序記錄的 log | 規則: 測「A 必須發生在 B 之前」這種順序不變量時，把所有相關 fake 物件的呼叫都 append 進同一份共用 `calls: list[str]`，最後斷言整個序列（例：`assert calls == ["goto","click","wait","save","close"]`），不要只斷言各自的旗標；懷疑測試是否測到位時，親自對原始碼做一次小 mutation 重跑測試確認會紅，比只看測試綠燈可靠。
+- 2026-07-05 | 症狀: 手動對 `session.py` 做 mutation-testing（改順序→測試紅→改回原樣→測試卻仍然紅，明明 `diff` 確認檔案內容已跟原始一模一樣）| 根因: 在同一秒內快速「寫入 mutated 版本→跑 pytest→寫回原版→再跑 pytest」，`__pycache__/*.pyc` 的 mtime-based 快取失效判斷在同一秒窗口內可能誤判為快取仍有效，導致還在跑舊的 mutated bytecode | 規則: 手動 mutation-testing 時，每次改完原始碼、跑 pytest 前，先 `find . -name "__pycache__" -exec rm -rf {} +` 清快取，或用 `python -B`（不寫入 bytecode），否則會出現「明明改回去了、測試卻還是紅」的假警報，白白懷疑錯地方。
