@@ -22,6 +22,7 @@ from .checkout import CheckoutInfo, go_to_checkout
 from .config import AUTH_STATE_FILE, DEFAULT_INTERVAL_SECS, DEFAULT_LEAD_SECS, PRODUCT_URL
 from .membership import GroupMembership
 from .monitor import wait_for_sale
+from .product_info import resolve_store_codes
 from .reporter import Reporter
 
 
@@ -90,6 +91,9 @@ def run_snapup_job(
                     reporter.log("錯誤: 登入 session 已過期！請重新登入")
                     return JobResult("session_expired")
                 reporter.log("登入狀態有效")
+
+                # 預先查出實際店碼（RS）並暖快取，開賣瞬間加車不必再等查詢
+                resolve_store_codes(membership.active_ids(), reporter)
 
                 reporter.phase("monitoring")
                 reporter.log("開始監控商品狀態...")

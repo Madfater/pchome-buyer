@@ -47,8 +47,9 @@ export default function CheckoutDetailDialog({ record, onClose }: Props) {
               <tr>
                 <th>商品</th>
                 <th>結果</th>
-                <th>購物車件數</th>
-                <th>金額</th>
+                {/* PRODCOUNT / PRODTOTAL 是加車後整車的累計值，不是該商品的數量與單價 */}
+                <th>加車後車內件數</th>
+                <th>加車後車內總額</th>
               </tr>
             </thead>
             <tbody>

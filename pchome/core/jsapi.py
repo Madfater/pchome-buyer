@@ -19,33 +19,50 @@ JSONP_JS = """
 })
 """
 
-# 批次加入購物車：每個商品做 snapup fetch → cart modify JSONP，
-# 多商品以 Promise.all 並行（MAC 授權碼效期僅 15 秒，兩步必須緊接執行）。
+# 批次加入購物車：snapup fetch 並行取得所有 MAC（效期 15 秒），
+# 但 cart modify 必須「逐一序列」執行 —— PChome 的購物車寫入是整車覆蓋
+# （last-write-wins），並行 modify 會互相蓋掉，只有最後一個商品留在車上。
 ADD_TO_CART_JS = """
 (args) => {
     const jsonp = %s;
-    return Promise.all(args.items.map(async (item) => {
-        try {
-            const snap = await fetch(item.snapupUrl).then(r => r.json());
-            if (snap.Status !== 'OK')
-                return { pid: item.pid, ok: false, stage: 'snapup', resp: snap };
-            const data = { ...item.cart, CAX: snap.MAC, CAXE: snap.MACExpire };
-            const ts = Date.now();
-            const url = args.modifyApi
-                + `?callback={CB}&${ts}`
-                + `&data=${encodeURIComponent(JSON.stringify(data))}`
-                + `&_=${ts}&_callback={CB}`;
-            const resp = await jsonp(url);
-            return {
-                pid: item.pid,
-                ok: resp.PRODADD === '1',
-                soldOut: resp.ISSALEOUT === 1,
-                stage: 'modify',
-                resp,
-            };
-        } catch (e) {
-            return { pid: item.pid, ok: false, stage: 'error', error: String(e) };
+    return (async () => {
+        const snaps = await Promise.all(args.items.map(async (item) => {
+            try {
+                return { item, snap: await fetch(item.snapupUrl).then(r => r.json()) };
+            } catch (e) {
+                return { item, error: String(e) };
+            }
+        }));
+        const results = [];
+        for (const { item, snap, error } of snaps) {
+            if (error) {
+                results.push({ pid: item.pid, ok: false, stage: 'error', error });
+                continue;
+            }
+            if (snap.Status !== 'OK') {
+                results.push({ pid: item.pid, ok: false, stage: 'snapup', resp: snap });
+                continue;
+            }
+            try {
+                const data = { ...item.cart, CAX: snap.MAC, CAXE: snap.MACExpire };
+                const ts = Date.now();
+                const url = args.modifyApi
+                    + `?callback={CB}&${ts}`
+                    + `&data=${encodeURIComponent(JSON.stringify(data))}`
+                    + `&_=${ts}&_callback={CB}`;
+                const resp = await jsonp(url);
+                results.push({
+                    pid: item.pid,
+                    ok: resp.PRODADD === '1',
+                    soldOut: resp.ISSALEOUT === 1,
+                    stage: 'modify',
+                    resp,
+                });
+            } catch (e) {
+                results.push({ pid: item.pid, ok: false, stage: 'error', error: String(e) });
+            }
         }
-    }));
+        return results;
+    })();
 }
 """ % JSONP_JS

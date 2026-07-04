@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from .cancel import cancellable_sleep
 from .config import CART_MODIFY_API, SNAPUP_API
 from .jsapi import ADD_TO_CART_JS
+from .product_info import resolve_store_codes
 from .reporter import Reporter
 from .timing import now_ms
 
@@ -39,14 +40,17 @@ class CartItemResult:
         }
 
 
-def add_to_cart_batch(page, product_ids: list[str]) -> list[dict]:
+def add_to_cart_batch(
+    page, product_ids: list[str], stores: dict[str, str]
+) -> list[dict]:
     """透過 snapup + cart modify API 將多個商品並行加入購物車
 
+    stores: pid → 實際店碼（RS）。店碼與 ID 前綴可能不同，送錯 RS 時
+    modify API 仍回成功，但商品會在購物車頁被靜默移除（見 product_info）。
     回傳每個商品的結果 dict：{pid, ok, soldOut, stage, resp/error}
     """
     items = []
     for pid in product_ids:
-        # 從商品 ID 解析店鋪代碼（如 DGCQ39-A900JESMM → RS=DGCQ39, TI=DGCQ39-A900JESMM-000）
         items.append({
             "pid": pid,
             "snapupUrl": SNAPUP_API.format(product_id=pid),
@@ -56,7 +60,7 @@ def add_to_cart_batch(page, product_ids: list[str]) -> list[dict]:
                 "TP": 2,
                 "T": "ADD",
                 "TI": f"{pid}-000",
-                "RS": pid.split("-")[0],
+                "RS": stores[pid],
                 "YTQ": 1,
             },
         })
@@ -91,10 +95,13 @@ def add_with_retry(
     success_ids: list[str] = []
     pending = list(product_ids)
     last_results: dict[str, CartItemResult] = {}
+    # 監控階段已暖快取時為即時；此處是最後保險（動態加入的成員）
+    stores = resolve_store_codes(product_ids, reporter)
 
     for attempt in range(1, MAX_RETRIES + 1):
-        results = add_to_cart_batch(page, pending)
+        results = add_to_cart_batch(page, pending, stores)
         pending = []
+        prev_count = None
         for res in results:
             pid = res["pid"]
             last_results[pid] = _to_result(res)
@@ -104,6 +111,17 @@ def add_with_retry(
                     f"[{now_ms()}] {pid} 已加入購物車！"
                     f"購物車共 {resp.get('PRODCOUNT')} 件，金額 ${resp.get('PRODTOTAL')}"
                 )
+                # modify 已序列執行，件數應嚴格遞增；否則表示商品互相覆蓋
+                count = resp.get("PRODCOUNT")
+                if (
+                    prev_count is not None and count is not None
+                    and count <= prev_count
+                ):
+                    reporter.log(
+                        f"警告: {pid} 加車後件數未增加（{prev_count} → {count}），"
+                        "先前商品可能已被覆蓋，結帳前請確認購物車內容"
+                    )
+                prev_count = count if count is not None else prev_count
                 reporter.product_status(pid, "carted")
                 success_ids.append(pid)
             elif res.get("soldOut"):

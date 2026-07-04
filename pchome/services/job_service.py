@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any
 
 from ..core.membership import GroupMembership
+from ..core.product_info import resolve_store_codes
 from ..core.reporter import Reporter
 from ..core.runner import JobConfig, JobResult, run_snapup_job
 from ..core.timing import parse_sale_time
@@ -137,6 +138,12 @@ class JobService:
                 if pending:
                     new_group = self._spawn_group(sale_time, pending)
                     started.append(new_group.gid)
+        if joined:
+            # 中途加入既有組的成員在背景暖店碼快取（新組由 runner 於監控前處理；
+            # 失敗也沒關係，add_with_retry 加車前會再解析一次）
+            threading.Thread(
+                target=resolve_store_codes, args=(list(joined),), daemon=True
+            ).start()
         return {"started": started, "joined": joined, "skipped": skipped}
 
     def cancel(self, pids: list[str]) -> None:
