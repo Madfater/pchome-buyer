@@ -94,7 +94,9 @@ export default function AddProductDialog({ open, onClose }: Props) {
             <div className="thumb placeholder" aria-hidden="true" />
           )}
           <div className="title-block">
-            <span className="name">{preview.name || pid}</span>
+            <span className="name" title={preview.name || pid}>
+              {preview.name || pid}
+            </span>
             {preview.price != null && (
               <span className="price">
                 ${preview.price.toLocaleString()}

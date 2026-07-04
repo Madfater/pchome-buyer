@@ -215,7 +215,9 @@ select {
 }
 .title-block .name {
   font-weight: 600;
-  overflow-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .title-block .pid {
   color: var(--muted);

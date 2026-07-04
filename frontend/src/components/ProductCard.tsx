@@ -60,7 +60,9 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
           <div className="thumb placeholder" aria-hidden="true" />
         )}
         <div className="title-block">
-          <span className="name">{product.name || product.id}</span>
+          <span className="name" title={product.name || product.id}>
+            {product.name || product.id}
+          </span>
           {product.name && <span className="pid">{product.id}</span>}
         </div>
         <button
