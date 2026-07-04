@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { groupColor } from '../colors'
-import { useAppState } from '../state'
+import { useAppDispatch, useAppState } from '../state'
 
 // gid 形如 "2026-03-06_1200#1"，取 # 前的時間部分對應群組顏色
 const gidKey = (gid: string) => gid.split('#')[0]
 
 export default function LogPanel() {
   const { logs } = useAppState()
+  const dispatch = useAppDispatch()
   const [filter, setFilter] = useState('')
   const panel = useRef<HTMLDivElement>(null)
 
@@ -32,6 +33,15 @@ export default function LogPanel() {
             ))}
           </select>
         )}
+        <button
+          disabled={!logs.length}
+          onClick={() => {
+            dispatch({ type: 'clear-logs' })
+            setFilter('')
+          }}
+        >
+          清除日誌
+        </button>
       </div>
       <div className="log-panel" ref={panel}>
         {shown.length === 0 ? (

@@ -27,6 +27,7 @@ export type Action =
   | { type: 'snapshot'; snapshot: Snapshot }
   | { type: 'auth'; auth: AuthStatus }
   | { type: 'connected'; connected: boolean }
+  | { type: 'clear-logs' }
   | { type: 'sse'; event: SseEvent }
 
 const initialState: AppState = {
@@ -46,6 +47,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, auth: action.auth }
     case 'connected':
       return { ...state, connected: action.connected }
+    case 'clear-logs':
+      return { ...state, logs: [] }
     case 'sse':
       return applySse(state, action.event)
   }
