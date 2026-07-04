@@ -54,7 +54,15 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
           onChange={onToggle}
           aria-label="選取任務"
         />
-        <span className="pid">{product.id}</span>
+        {product.image ? (
+          <img className="thumb" src={product.image} alt="" />
+        ) : (
+          <div className="thumb placeholder" aria-hidden="true" />
+        )}
+        <div className="title-block">
+          <span className="name">{product.name || product.id}</span>
+          {product.name && <span className="pid">{product.id}</span>}
+        </div>
         <button
           className="edit"
           title="修改開賣時間"
@@ -72,6 +80,34 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
           ✕
         </button>
       </div>
+      {(product.price != null ||
+        product.is_spec ||
+        product.is_eticket ||
+        product.is_preorder) && (
+        <div className="meta-row">
+          {product.price != null && (
+            <span className="price">
+              ${product.price.toLocaleString()}
+              {product.orig_price != null &&
+                product.orig_price > product.price && (
+                  <span className="orig-price">
+                    ${product.orig_price.toLocaleString()}
+                  </span>
+                )}
+            </span>
+          )}
+          {product.is_spec && (
+            <span
+              className="badge warn"
+              title="此商品有多種規格（顏色/尺寸等），本工具僅會加購預設款式，請先確認預設組合是否為你要的"
+            >
+              含規格選項
+            </span>
+          )}
+          {product.is_eticket && <span className="badge">電子票券</span>}
+          {product.is_preorder && <span className="badge">預購</span>}
+        </div>
+      )}
       <div className="sale">
         {product.sale_time ? `開賣 ${product.sale_time}` : '立即監控'}
       </div>

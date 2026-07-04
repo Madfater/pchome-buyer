@@ -162,3 +162,75 @@ class TestFetchStores:
             product_info.urllib.request, "urlopen", lambda req, timeout: FakeResponse()
         )
         assert product_info._fetch_stores(["A-1"]) == {}
+
+
+class TestFetchProductMeta:
+    def _fake_urlopen(self, monkeypatch, body: bytes):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return body
+
+        monkeypatch.setattr(
+            product_info.urllib.request, "urlopen", lambda req, timeout: FakeResponse()
+        )
+
+    def test_parses_name_price_image_and_flags(self, monkeypatch):
+        self._fake_urlopen(
+            monkeypatch,
+            json.dumps(
+                {
+                    "A-1-000": {
+                        "Id": "A-1-000",
+                        "Name": "測試商品",
+                        "Price": {"M": 1000, "P": 800},
+                        "Pic": {"S": "/items/A1/000001.jpg"},
+                        "isSpec": 1,
+                        "isETicket": 0,
+                        "isPreOrder24h": 0,
+                    }
+                }
+            ).encode("utf-8"),
+        )
+        meta = product_info.fetch_product_meta("A-1")
+        assert meta == {
+            "name": "測試商品",
+            "image": "https://img.pchome.com.tw/cs/items/A1/000001.jpg",
+            "price": 800,
+            "orig_price": 1000,
+            "is_spec": True,
+            "is_eticket": False,
+            "is_preorder": False,
+        }
+
+    def test_missing_pic_yields_empty_image(self, monkeypatch):
+        self._fake_urlopen(
+            monkeypatch,
+            json.dumps(
+                {"A-1-000": {"Id": "A-1-000", "Name": "無圖商品", "Price": {}}}
+            ).encode("utf-8"),
+        )
+        meta = product_info.fetch_product_meta("A-1")
+        assert meta is not None
+        assert meta["image"] == ""
+        assert meta["price"] is None
+
+    def test_list_response_means_no_product_returns_none(self, monkeypatch):
+        self._fake_urlopen(monkeypatch, b"[]")
+        assert product_info.fetch_product_meta("A-1") is None
+
+    def test_network_failure_returns_none(self, monkeypatch):
+        def boom(req, timeout):
+            raise TimeoutError("slow")
+
+        monkeypatch.setattr(product_info.urllib.request, "urlopen", boom)
+        assert product_info.fetch_product_meta("A-1") is None
+
+    def test_malformed_json_returns_none(self, monkeypatch):
+        self._fake_urlopen(monkeypatch, b"not json")
+        assert product_info.fetch_product_meta("A-1") is None

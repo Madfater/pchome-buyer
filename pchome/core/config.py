@@ -21,6 +21,12 @@ CART_MODIFY_API = "https://ecssl-cart.pchome.com.tw/cart/index.php/prod/modify"
 PROD_INFO_API = (
     "https://ecapi-cdn.pchome.com.tw/ecshop/prodapi/v2/prod?id={ids}&fields=Id,Store"
 )
+PROD_META_API = (
+    "https://ecapi-cdn.pchome.com.tw/ecshop/prodapi/v2/prod"
+    "?id={id}&fields=Id,Name,Price,Pic,RatingValue,ReviewCount,"
+    "isSpec,isETicket,isPreOrder24h,isSnapUp"
+)
+PROD_IMAGE_HOST = "https://img.pchome.com.tw/cs"
 CART_HOST = "https://ecssl-cart.pchome.com.tw/"
 PRODUCT_URL = "https://24h.pchome.com.tw/prod/{product_id}"
 CART_URL = "https://ecssl.pchome.com.tw/fsrwd/cart"

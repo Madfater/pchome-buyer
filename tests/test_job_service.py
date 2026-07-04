@@ -200,7 +200,9 @@ class TestUpdateSaleTime:
         install_fake_run(monkeypatch)
         svc.store.add("A", "2026-01-01 00:10")
         svc.update_sale_time("A", "2026-01-01 00:12")
-        assert svc.store.list() == [{"id": "A", "sale_time": "2026-01-01 00:12"}]
+        assert svc.store.list() == [
+            {"id": "A", "sale_time": "2026-01-01 00:12", "meta": {}}
+        ]
 
     def test_raises_keyerror_for_unknown_pid(self, svc, monkeypatch):
         install_fake_run(monkeypatch)

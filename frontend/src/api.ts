@@ -1,4 +1,9 @@
-import type { AuthStatus, ImportResult, Snapshot } from './types'
+import type {
+  AuthStatus,
+  ImportResult,
+  ProductPreview,
+  Snapshot,
+} from './types'
 
 async function api<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -24,6 +29,12 @@ export const fetchState = () => api<Snapshot>('GET', '/api/state')
 
 export const addProduct = (ref: string, saleTime: string) =>
   api<Snapshot>('POST', '/api/products', { ref, sale_time: saleTime })
+
+export const previewProduct = (ref: string) =>
+  api<ProductPreview>(
+    'GET',
+    `/api/products/preview?ref=${encodeURIComponent(ref)}`,
+  )
 
 export const removeProduct = (pid: string) =>
   api<Snapshot>('DELETE', `/api/products/${encodeURIComponent(pid)}`)

@@ -85,4 +85,66 @@ describe('AddProductDialog', () => {
     await waitFor(() => expect(toastSpy).toHaveBeenCalledWith('商品編號重複'))
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('shows a debounced preview card with name/price once the id resolves', async () => {
+    vi.mocked(api.previewProduct).mockResolvedValue({
+      pid: 'DGCQ39-A900JESMM',
+      name: '測試商品',
+      price: 800,
+      orig_price: 1000,
+    })
+    const user = userEvent.setup()
+    render(<AddProductDialog open onClose={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('商品網址或編號'), 'DGCQ39-A900JESMM')
+
+    await waitFor(() =>
+      expect(screen.getByText('測試商品')).toBeInTheDocument(),
+    )
+    expect(screen.getByText('$800')).toBeInTheDocument()
+    expect(screen.getByText('$1,000')).toBeInTheDocument()
+    expect(api.previewProduct).toHaveBeenCalledWith('DGCQ39-A900JESMM')
+  })
+
+  it('shows a spec warning badge in the preview for multi-spec products', async () => {
+    vi.mocked(api.previewProduct).mockResolvedValue({
+      pid: 'DGCQ39-A900JESMM',
+      name: '測試商品',
+      is_spec: true,
+    })
+    const user = userEvent.setup()
+    render(<AddProductDialog open onClose={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('商品網址或編號'), 'DGCQ39-A900JESMM')
+
+    await waitFor(() =>
+      expect(screen.getByText('含規格選項')).toBeInTheDocument(),
+    )
+  })
+
+  it('shows a "查無商品資訊" hint without blocking submit when preview has no data', async () => {
+    vi.mocked(api.previewProduct).mockResolvedValue({
+      pid: 'DGCQ39-A900JESMM',
+    })
+    const user = userEvent.setup()
+    render(<AddProductDialog open onClose={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('商品網址或編號'), 'DGCQ39-A900JESMM')
+
+    await waitFor(() =>
+      expect(screen.getByText('查無商品資訊，仍可新增')).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: '新增' })).toBeEnabled()
+  })
+
+  it('does not block submit when the preview request itself fails', async () => {
+    vi.mocked(api.previewProduct).mockRejectedValue(new Error('network'))
+    const user = userEvent.setup()
+    render(<AddProductDialog open onClose={vi.fn()} />)
+
+    await user.type(screen.getByLabelText('商品網址或編號'), 'DGCQ39-A900JESMM')
+
+    await waitFor(() => expect(api.previewProduct).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: '新增' })).toBeEnabled()
+  })
 })

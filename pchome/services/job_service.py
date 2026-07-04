@@ -368,6 +368,7 @@ class JobService:
                     "state": job.state,
                     "info": job.info,
                     "gid": job.gid,
+                    **item.get("meta", {}),
                 }
             )
         with self._lock:

@@ -11,10 +11,11 @@ import json
 import threading
 import urllib.request
 
-from .config import PROD_INFO_API
+from .config import PROD_IMAGE_HOST, PROD_INFO_API, PROD_META_API
 from .reporter import Reporter
 
 _REQUEST_TIMEOUT_SECS = 5
+_META_REQUEST_TIMEOUT_SECS = 4
 
 _cache: dict[str, str] = {}
 _lock = threading.Lock()
@@ -70,3 +71,36 @@ def resolve_store_codes(
                 _cache[pid] = store
         # 查詢失敗者不寫入快取（下次呼叫會重試），本次以 ID 前綴退回
         return {pid: _cache.get(pid, _fallback(pid)) for pid in product_ids}
+
+
+def fetch_product_meta(pid: str) -> dict | None:
+    """查詢商品的靜態展示資訊（名稱/圖片/價格/規格旗標），供前端卡片顯示用
+
+    僅在使用者新增商品時呼叫一次，非監控迴圈的高頻查詢，不做快取。
+    查詢失敗（逾時、格式錯誤、查無商品）一律回傳 None，呼叫端應優雅退化
+    為「沒有 meta，卡片只顯示商品編號」，不可讓新增商品這個動作失敗。
+    """
+    req = urllib.request.Request(
+        PROD_META_API.format(id=f"{pid}-000"),
+        headers={"User-Agent": "Mozilla/5.0", "Referer": "https://24h.pchome.com.tw/"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_META_REQUEST_TIMEOUT_SECS) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if not isinstance(data, dict):  # 查無商品時 API 回傳 list
+            return None
+        info = data[f"{pid}-000"]
+        price = info.get("Price") or {}
+        pic = info.get("Pic") or {}
+        image_path = pic.get("S") or pic.get("B") or pic.get("W") or ""
+        return {
+            "name": info.get("Name") or "",
+            "image": f"{PROD_IMAGE_HOST}{image_path}" if image_path else "",
+            "price": price.get("P"),
+            "orig_price": price.get("M"),
+            "is_spec": bool(info.get("isSpec")),
+            "is_eticket": bool(info.get("isETicket")),
+            "is_preorder": bool(info.get("isPreOrder24h")),
+        }
+    except Exception:
+        return None

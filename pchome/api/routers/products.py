@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from ...core.product_info import fetch_product_meta
 from ...core.timing import parse_sale_time
 from ...services.product_id import parse_product_ref
 from ..deps import Container, get_container
@@ -27,8 +28,19 @@ def add_product(p: ProductIn, c: Container = Depends(get_container)):
             parse_sale_time(sale_time)
         except ValueError as e:
             raise HTTPException(400, str(e))
-    c.store.add(pid, sale_time)
+    c.store.add(pid, sale_time, fetch_product_meta(pid))
     return c.state()
+
+
+@router.get("/preview")
+def preview_product(ref: str):
+    """唯讀查詢：解析商品網址/編號並抓展示資訊，供新增前預覽，不寫入清單"""
+    try:
+        pid = parse_product_ref(ref)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    meta = fetch_product_meta(pid)
+    return {"pid": pid, **(meta or {})}
 
 
 class ProductPatch(BaseModel):

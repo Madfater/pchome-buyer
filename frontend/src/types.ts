@@ -12,6 +12,26 @@ export interface Product {
   state: string
   info: string
   gid: string | null
+  // 以下為選填的商品展示資訊（新增時後端 best-effort 抓取，抓不到就沒有這些欄位）
+  name?: string
+  image?: string
+  price?: number | null
+  orig_price?: number | null
+  is_spec?: boolean
+  is_eticket?: boolean
+  is_preorder?: boolean
+}
+
+// GET /api/products/preview 的回應：pid 一定有，其餘欄位視抓取結果而定
+export interface ProductPreview {
+  pid: string
+  name?: string
+  image?: string
+  price?: number | null
+  orig_price?: number | null
+  is_spec?: boolean
+  is_eticket?: boolean
+  is_preorder?: boolean
 }
 
 export interface Group {

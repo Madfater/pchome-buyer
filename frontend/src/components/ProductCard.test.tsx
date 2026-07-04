@@ -168,4 +168,74 @@ describe('ProductCard', () => {
 
     await waitFor(() => expect(toastSpy).toHaveBeenCalledWith('無法啟動'))
   })
+
+  it('falls back to showing the id when there is no name/image/price meta', () => {
+    render(
+      <ProductCard product={product()} selected={false} onToggle={vi.fn()} />,
+    )
+    expect(screen.getByText('DGCQ39-A900JESMM')).toBeInTheDocument()
+    expect(document.querySelector('.thumb.placeholder')).toBeInTheDocument()
+  })
+
+  it('shows name, image, price and a strikethrough original price when meta is present', () => {
+    render(
+      <ProductCard
+        product={product({
+          name: '測試商品',
+          image: 'https://img.pchome.com.tw/cs/items/x.jpg',
+          price: 800,
+          orig_price: 1000,
+        })}
+        selected={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('測試商品')).toBeInTheDocument()
+    // 有名稱時，商品編號改以次要文字顯示在旁邊
+    expect(screen.getByText('DGCQ39-A900JESMM')).toBeInTheDocument()
+    expect(screen.getByText('$800')).toBeInTheDocument()
+    expect(screen.getByText('$1,000')).toBeInTheDocument()
+    expect(document.querySelector('img.thumb')?.getAttribute('src')).toBe(
+      'https://img.pchome.com.tw/cs/items/x.jpg',
+    )
+  })
+
+  it('does not show a strikethrough price when orig_price equals price', () => {
+    render(
+      <ProductCard
+        product={product({ name: '測試商品', price: 800, orig_price: 800 })}
+        selected={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('$800')).toBeInTheDocument()
+    expect(screen.queryByText('$1,000')).not.toBeInTheDocument()
+  })
+
+  it('shows a spec warning badge for products with variants', () => {
+    render(
+      <ProductCard
+        product={product({ name: '測試商品', is_spec: true })}
+        selected={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('含規格選項')).toBeInTheDocument()
+  })
+
+  it('shows e-ticket and pre-order badges when flagged', () => {
+    render(
+      <ProductCard
+        product={product({
+          name: '測試商品',
+          is_eticket: true,
+          is_preorder: true,
+        })}
+        selected={false}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('電子票券')).toBeInTheDocument()
+    expect(screen.getByText('預購')).toBeInTheDocument()
+  })
 })

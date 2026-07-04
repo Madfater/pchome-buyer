@@ -116,3 +116,56 @@ def test_delete_unknown_product_is_noop_200(client):
     resp = client.delete("/api/products/GHOST")
     assert resp.status_code == 200
     assert resp.json()["products"] == []
+
+
+def test_add_product_stores_and_returns_meta(client, monkeypatch):
+    from pchome.api.routers import products as products_module
+
+    monkeypatch.setattr(
+        products_module,
+        "fetch_product_meta",
+        lambda pid: {"name": "測試商品", "price": 100, "is_spec": True},
+    )
+    resp = client.post("/api/products", json={"ref": "A-1"})
+    assert resp.status_code == 200
+    product = resp.json()["products"][0]
+    assert product["name"] == "測試商品"
+    assert product["price"] == 100
+    assert product["is_spec"] is True
+
+
+def test_add_product_meta_fetch_failure_does_not_fail_add(client, monkeypatch):
+    from pchome.api.routers import products as products_module
+
+    monkeypatch.setattr(products_module, "fetch_product_meta", lambda pid: None)
+    resp = client.post("/api/products", json={"ref": "A-1"})
+    assert resp.status_code == 200
+    product = resp.json()["products"][0]
+    assert product["id"] == "A-1"
+    assert "name" not in product
+
+
+def test_preview_product_returns_meta_without_adding(client, monkeypatch):
+    from pchome.api.routers import products as products_module
+
+    monkeypatch.setattr(
+        products_module,
+        "fetch_product_meta",
+        lambda pid: {"name": "預覽商品", "price": 200},
+    )
+    resp = client.get("/api/products/preview", params={"ref": "A-1"})
+    assert resp.status_code == 200
+    assert resp.json() == {"pid": "A-1", "name": "預覽商品", "price": 200}
+    # 只是預覽，不應該真的新增進清單
+    assert client.get("/api/state").json()["products"] == []
+
+
+def test_preview_product_invalid_ref_returns_400(client):
+    resp = client.get("/api/products/preview", params={"ref": "not a ref"})
+    assert resp.status_code == 400
+
+
+def test_preview_product_meta_fetch_failure_still_returns_pid(client):
+    resp = client.get("/api/products/preview", params={"ref": "A-1"})
+    assert resp.status_code == 200
+    assert resp.json() == {"pid": "A-1"}
