@@ -18,6 +18,7 @@ auth_state.json
 # 執行期資料（商品清單、結帳紀錄）
 products.json
 checkouts.json
+data/
 
 # 環境變數（含敏感資料）
 .env
