@@ -27,6 +27,12 @@ export const addProduct = (ref: string, saleTime: string) =>
 export const removeProduct = (pid: string) =>
   api<Snapshot>('DELETE', `/api/products/${encodeURIComponent(pid)}`)
 
+export const removeProducts = (pids: string[]) =>
+  api<Snapshot>('POST', '/api/products/remove', { pids })
+
+export const updateSaleTime = (pid: string, saleTime: string) =>
+  api<Snapshot>('PATCH', `/api/products/${encodeURIComponent(pid)}`, { sale_time: saleTime })
+
 export const startJobs = (pids: string[]) =>
   api<Snapshot>('POST', '/api/jobs/start', { pids })
 

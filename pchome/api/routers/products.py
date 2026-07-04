@@ -1,4 +1,4 @@
-"""商品卡片管理：新增（網址或編號）、刪除"""
+"""商品卡片管理：新增（網址或編號）、修改開賣時間、刪除"""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -28,6 +28,40 @@ def add_product(p: ProductIn, c: Container = Depends(get_container)):
         except ValueError as e:
             raise HTTPException(400, str(e))
     c.store.add(pid, sale_time)
+    return c.state()
+
+
+class ProductPatch(BaseModel):
+    sale_time: str = ""
+
+
+@router.patch("/{pid}")
+def update_product(pid: str, p: ProductPatch, c: Container = Depends(get_container)):
+    sale_time = p.sale_time.strip()
+    if sale_time:
+        try:
+            parse_sale_time(sale_time)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    try:
+        c.jobs.update_sale_time(pid, sale_time)
+    except KeyError:
+        raise HTTPException(404, "找不到商品")
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return c.state()
+
+
+class PidsIn(BaseModel):
+    pids: list[str]
+
+
+# 仿 POST /api/jobs/start|cancel 的 {pids} 慣例（DELETE 帶 body 支援度差）
+@router.post("/remove")
+def remove_products(body: PidsIn, c: Container = Depends(get_container)):
+    if not body.pids:
+        raise HTTPException(400, "未指定要刪除的商品")
+    c.jobs.remove_products(body.pids)
     return c.state()
 
 

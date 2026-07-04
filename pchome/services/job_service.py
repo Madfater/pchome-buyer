@@ -326,6 +326,21 @@ class JobService:
         self.store.remove(pid)
         self._jobs.pop(pid, None)
 
+    def remove_products(self, pids: list[str]) -> None:
+        for pid in dict.fromkeys(pids):
+            self.remove_product(pid)
+
+    def update_sale_time(self, pid: str, sale_time: str) -> None:
+        """修改商品開賣時間；job 執行中（queued 以上）拒絕
+
+        注意：start() 先讀 sale_times 快照才分桶，與本方法毫秒級重疊時
+        新組可能用舊時間啟動；_is_active 守門已把實際窗口縮到可忽略。
+        """
+        if self._is_active(pid):
+            raise RuntimeError("任務執行中，無法修改開賣時間")
+        if not self.store.update_sale_time(pid, sale_time):
+            raise KeyError(pid)
+
     def state(self) -> dict:
         """products 與 groups 的執行期快照（auth/checkouts 由 API 層組裝）"""
         products = []

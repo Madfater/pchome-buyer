@@ -26,6 +26,16 @@ class ProductStore:
             self._items.append({"id": pid, "sale_time": sale_time})
             self._save()
 
+    def update_sale_time(self, pid: str, sale_time: str) -> bool:
+        """更新既有商品的開賣時間（保留清單順序）；不存在回傳 False"""
+        with self._lock:
+            for item in self._items:
+                if item["id"] == pid:
+                    item["sale_time"] = sale_time
+                    self._save()
+                    return True
+            return False
+
     def remove(self, pid: str) -> None:
         with self._lock:
             self._items = [i for i in self._items if i["id"] != pid]

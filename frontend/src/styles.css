@@ -55,6 +55,18 @@ input, textarea, select {
   gap: 14px; margin-bottom: 8px;
 }
 
+.group-section { margin-bottom: 10px; }
+.group-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; font-size: 14px;
+}
+.group-head input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+.group-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--gcolor, var(--border)); flex: none;
+}
+.group-head .group-title { font-weight: 600; }
+
 .card {
   background: var(--card); border: 1px solid var(--border);
   border-left: 5px solid var(--gcolor, var(--border));
@@ -69,6 +81,10 @@ input, textarea, select {
 .card .remove {
   border: none; background: none; color: var(--muted);
   font-size: 16px; padding: 0 4px; line-height: 1;
+}
+.card .edit {
+  border: none; background: none; color: var(--muted);
+  font-size: 14px; padding: 0 4px; line-height: 1;
 }
 .card .progress { color: var(--muted); font-size: 12.5px; margin-top: 8px; word-break: break-all; }
 .card input[type="checkbox"] { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); }

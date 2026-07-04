@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { cancelJobs, removeProduct, startJobs } from '../api'
 import { groupColor, saleTimeKey } from '../colors'
 import { useAppState, useApplySnapshot } from '../state'
 import { useToast } from '../toast'
 import { ACTIVE_STATES, GROUP_PHASE_LABEL, STATE_CLASS, STATE_LABEL, type Product } from '../types'
+import ConfirmDialog from './ConfirmDialog'
+import EditSaleTimeDialog from './EditSaleTimeDialog'
 
 interface Props {
   product: Product
@@ -14,6 +17,8 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
   const { groups } = useAppState()
   const applySnapshot = useApplySnapshot()
   const toast = useToast()
+  const [confirm, setConfirm] = useState<'remove' | 'release' | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
 
   const active = ACTIVE_STATES.has(product.state)
   const group = product.gid ? groups[product.gid] : undefined
@@ -36,10 +41,18 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
         <input type="checkbox" checked={selected} onChange={onToggle} aria-label="選取任務" />
         <span className="pid">{product.id}</span>
         <button
+          className="edit"
+          title="修改開賣時間"
+          disabled={active}
+          onClick={() => setEditOpen(true)}
+        >
+          ✎
+        </button>
+        <button
           className="remove"
           title="刪除任務"
           disabled={active}
-          onClick={() => call(() => removeProduct(product.id))}
+          onClick={() => setConfirm('remove')}
         >
           ✕
         </button>
@@ -53,9 +66,15 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
         </span>
         {product.info && <span className="info">{product.info}</span>}
         {active ? (
-          <button className="danger" onClick={() => call(() => cancelJobs([product.id]))}>
-            {holding ? '結束（關閉瀏覽器）' : '取消'}
-          </button>
+          holding ? (
+            <button className="danger" onClick={() => setConfirm('release')}>
+              結束（關閉瀏覽器）
+            </button>
+          ) : (
+            <button className="danger" onClick={() => call(() => cancelJobs([product.id]))}>
+              取消
+            </button>
+          )
         ) : (
           <button className="primary" onClick={() => call(() => startJobs([product.id]))}>
             開始
@@ -68,6 +87,29 @@ export default function ProductCard({ product, selected, onToggle }: Props) {
           {group.progress ? ` — ${group.progress}` : ''}
         </div>
       )}
+      <EditSaleTimeDialog open={editOpen} product={product} onClose={() => setEditOpen(false)} />
+      <ConfirmDialog
+        open={confirm === 'remove'}
+        title="刪除任務"
+        message={`將刪除 ${product.id}，此操作無法復原。`}
+        confirmLabel="刪除"
+        onConfirm={() => {
+          setConfirm(null)
+          call(() => removeProduct(product.id))
+        }}
+        onClose={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === 'release'}
+        title="結束並關閉瀏覽器"
+        message="這個組的所有任務共用同一個瀏覽器，結束後將關閉結帳頁面。請確認已完成付款。"
+        confirmLabel="結束"
+        onConfirm={() => {
+          setConfirm(null)
+          call(() => cancelJobs([product.id]))
+        }}
+        onClose={() => setConfirm(null)}
+      />
     </div>
   )
 }
