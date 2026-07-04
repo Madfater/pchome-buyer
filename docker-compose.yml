@@ -5,11 +5,10 @@ services:
     # 要對外請改成 "8787:8787" 並以反向代理（basic auth / VPN）保護
     ports:
       - "127.0.0.1:8787:8787"
-    env_file:
-      - path: .env # CVC / AUTO_PAY（遠端 headless 部署建議 AUTO_PAY=true）
-        required: false
     environment:
       - TZ=Asia/Taipei # 開賣時間以此時區解析
+      - CVC=${CVC}
+      - AUTO_PAY=${AUTO_PAY}
     volumes:
       - ./data:/data # auth_state.json / products.json / checkouts.json
     init: true # 回收 Chromium 子行程
