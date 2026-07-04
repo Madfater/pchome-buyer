@@ -1,100 +1,58 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+PChome 24h 限量商品搶購工具：Playwright 自動化，主介面是 web 控制面板（React + Vite 前端、FastAPI 後端），CLI（`login` / `buy`）是輔助。每個商品是一張可獨立啟動的 job 卡；同一開賣時間的 job 在執行期合併成一個 run-group（一個瀏覽器、一次批次輪詢、一次結帳）。
 
-## Project overview
-
-A Playwright-based automation tool for buying limited-quantity products on PChome 24h (Taiwanese e-commerce site) the moment they go on sale ("搶購" / snap-up). The primary interface is a **web control panel** (React + Vite frontend, FastAPI backend); the CLI (`login` / `buy`) is an auxiliary tool. Each product is an independently startable job card; jobs sharing a sale time are merged at runtime into one run-group (one browser, one batched poll, one checkout).
-
-## Commands
+## 指令
 
 ```bash
-# Backend dependencies
-uv sync
+uv sync                                 # 後端依賴
+uv run playwright install chromium      # 裝瀏覽器（一次）
+npm --prefix frontend install           # 前端依賴
+npm --prefix frontend run build         # 前端 build（FastAPI 服務面板前必跑）
 
-# Install Playwright's Chromium browser (required once)
-uv run playwright install chromium
+uv run python main.py web [--port 9000] [--host 0.0.0.0]   # 面板 http://127.0.0.1:8787
+npm --prefix frontend run dev           # 前端開發（另開終端，proxy /api 到 :8787）
 
-# Frontend: install deps and build (required before serving the panel from FastAPI)
-npm --prefix frontend install
-npm --prefix frontend run build
-
-# Web control panel on http://127.0.0.1:8787 (serves frontend/dist)
-uv run python main.py web [--port 9000] [--host 0.0.0.0]
-
-# Frontend development: two terminals — backend + Vite dev server (proxies /api to :8787)
-uv run python main.py web
-npm --prefix frontend run dev
-
-# CLI auxiliary commands
-uv run python main.py login   # headed browser manual login → auth_state.json
+uv run python main.py login             # 有頭瀏覽器手動登入 → auth_state.json
 uv run python main.py buy DGCQ39-A900JESMM [--headless] [--interval 0.3] \
     [--sale-time "2026-03-06 12:00"] [--lead 600]
 
-# Checks (no test suite configured)
-uv run --with pyright pyright pchome
-npm --prefix frontend run lint    # oxlint
-npm --prefix frontend run build   # includes tsc type check
+# 檢查（無測試套件——這三個是唯一的自動 gate，改完必跑對應項）
+uv run --with pyright pyright pchome    # 改了 Python 必跑
+npm --prefix frontend run lint          # 改了前端必跑（oxlint）
+npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢查）
 ```
 
-## Architecture
+## 致命不變量（違反會 silent fail 或花冤枉錢，改碼前逐條核對）
 
-`main.py` is a thin entry point → `pchome/cli.py`. The package is layered:
+1. **JSONP-only**：PChome 的 `prod/button` 與 `cart modify` 是 JSONP-only（跨域、無 CORS），必須經 `page.evaluate` 注入 `<script>`（`core/jsapi.py` 的 `JSONP_JS`）呼叫，不能用 `fetch`。`snapup` 和 `datetime` 有 CORS，直接 `fetch`。
+2. **RS 必須查、不能拆**：cart-modify 的 `RS`（store code）必須來自 `product_info.resolve_store_codes()`，絕不能從商品 ID 前綴拆（例：`DBAJ8S-A900AJDA7` 屬於 `DBAJ8U`）。RS 錯了 cart-modify 照樣回成功，但購物車頁載入時 PChome 會默默丟掉該商品。ID+`-000` 只用在 `TI` 欄位。
+3. **cart-modify 嚴格序列**：PChome 購物車寫入是整車 last-write-wins，並行 modify 會互相覆蓋只剩一件。snapup 可平行，modify 必須逐一序列（`ADD_TO_CART_JS`）。
+4. **MAC 只有約 15 秒有效** → membership 在加購前 `freeze()`；`carting` phase 之後絕不可變動 group 的商品集合。
+5. **一個輪詢迴圈**：多商品用一次批次 `prod/button` 呼叫同時監控，不是一商品一頁。
+6. `PRODCOUNT`/`PRODTOTAL` 是該次加入後的**整車累計**，不是單品數量/價格。
+7. **會花真錢**：`AUTO_PAY=true` 會自動點確認付款。任何測試都不可對真實商品跑到結帳；`.env` 有真實 CVC、`auth_state.json` 是真實登入 session——不讀進對話、不印出、不外傳（都已 gitignore，不要 commit）。
+8. web job 一律 headless（遠端部署）。`AUTO_PAY=false` 時遠端使用者無法在 held browser 手動付款——遠端部署建議 `AUTO_PAY=true`。
+9. 面板**沒有認證層**：預設綁 127.0.0.1；`--host 0.0.0.0` 必須靠反向代理保護（basic auth / VPN / Cloudflare Access）。
+10. checkout 的 payinfo 擷取是 best-effort：擷取失敗絕不能中斷付款流程（selector 未經實地驗證）。
+11. sync Playwright 不能跑在 asyncio loop 上 → 一個 run-group 一條執行緒一個瀏覽器；**全域 checkout lock** 串行化加購→結帳（購物車是帳號全域的）。
 
-### `pchome/core/` — domain logic (no FastAPI, no persistence)
+## 文件路由（按需讀，不用全讀）
 
-- **`config.py`** — `.env` loading, API endpoint URLs, polling constants, `AUTH_STATE_FILE` / `PRODUCTS_FILE` / `CHECKOUTS_FILE` paths, `get_cvc()` / `is_auto_pay()`.
-- **`jsapi.py`** — browser-side JS snippets: `JSONP_JS` (shared JSONP helper; `{CB}` in a URL is replaced with a one-shot callback name) and `ADD_TO_CART_JS` (batch add-to-cart: snapup fetches in parallel via `Promise.all`, then cart-modify calls **strictly sequential** — PChome's cart write is whole-cart last-write-wins, so concurrent modifies clobber each other and only one item survives).
-- **`timing.py`** — `now_ms()`, `parse_sale_time()` (raises `ValueError`), `get_server_offset()` (server−local clock offset, RTT-midpoint compensated).
-- **`reporter.py`** — `Reporter` abstraction (`log` / `progress` / `product_status` / `phase`); `ConsoleReporter` for the CLI, `GroupReporter` (in `services/job_service.py`) pushes to SSE. Core modules never call `print()` directly. `phase()` reports run-group lifecycle to the service layer (default no-op).
-- **`cancel.py`** — `JobCancelled` + `cancellable_sleep()`; web jobs are stopped via a `threading.Event` checked at every wait point.
-- **`membership.py`** — `GroupMembership`: thread-safe mutable member set of a run-group. Members can join/leave during monitoring; `freeze()` locks the final list before add-to-cart (`add()` returns `False` afterwards).
-- **`session.py`** — `login_flow(wait_for_user)` (headed browser, CLI-only), auth-state save/existence check, `check_session(page)` (loads the cart page and detects redirect to login; snapup/cart modify work without login — login is only enforced at checkout, so this runs before monitoring starts), `check_session_standalone()` (short-lived headless browser, used by the auth status endpoint).
-- **`monitor.py`** — `wait_for_sale()`: polls the `prod/button` API (JSONP, one batched call for all products) for `ButtonType` (`ForSale` / `NotReady` / `SoldOut`) at `interval` ±50% randomized. Re-reads `membership.active_ids()` every loop iteration (dynamic join/leave); empty membership raises `JobCancelled`. Server time fetched once at start, resynced every 60s; every 60s fires a `no-cors` fetch to `ecssl-cart.pchome.com.tw` to keep the TLS connection warm. With a sale time, polls at `interval*4` until 15s before, then full speed.
-- **`product_info.py`** — `resolve_store_codes()`: batch prod-API lookup of each product's real store code (`Store` field) for the cart `RS` param, with an in-memory cache. The ID prefix is **not** always the store code (e.g. `DBAJ8S-A900AJDA7` belongs to `DBAJ8U`); with a wrong `RS`, cart-modify reports success but PChome silently drops the item when the cart page loads. Cache is warmed in `runner.py` before monitoring (and in `job_service.start()` for late joiners); lookup failures fall back to the ID prefix without being cached.
-- **`cart.py`** — `add_with_retry()` returns `(success_ids, failed_ids, results)` where `results` are structured `CartItemResult`s (incl. `PRODCOUNT`/`PRODTOTAL` from the cart-modify response). Per product: `snapup` API (fetch) returns a MAC auth code (**valid ~15 seconds**), immediately followed by `cart modify` (JSONP) with that MAC; all products in one `page.evaluate` (parallel snapups, sequential modifies — see `jsapi.py`). Logs a warning if `PRODCOUNT` doesn't strictly increase across sequential adds (clobber detection). Retries failures up to 3 times (sold-out not retried).
-- **`checkout.py`** — `go_to_checkout()` returns `CheckoutInfo`: cart → payinfo page, autofills CVC (multiple fallback selectors), optionally auto-clicks 確認付款 when `AUTO_PAY=true`, and captures order info **best-effort** (`_capture_payinfo`: selector cascade + truncated body text fallback; capture failures must never break the payment flow — the payinfo DOM selectors are unverified and may need live tuning).
-- **`runner.py`** — `run_snapup_job(JobConfig, reporter, membership=, checkout_lock=, cancel=, hold=)`: lead sleep → launch browser → session check → monitor → freeze membership → add-to-cart retry → checkout → `hold(result)` (keeps browser open; called with the pending `JobResult` so the web layer can persist the checkout record while the browser is still open). Returns `JobResult(status, success_ids, cart_results, checkout)`. CLI passes no membership (a static one is built from `cfg.product_ids`).
+| 時機 | 讀 |
+|---|---|
+| 要改任何程式碼、找檔案位置之前 | [docs/claude/architecture.md](docs/claude/architecture.md)（導航地圖；以程式碼為準） |
+| 任務要大量讀檔/掃 repo/查網頁/批次改檔 | [docs/claude/10-model-dispatch.md](docs/claude/10-model-dispatch.md)（派工守則，含授權聲明） |
+| 判斷要不要升級模型/算不算完成/該不該問使用者/是不是方向錯了 | [docs/claude/20-judgment-rubrics.md](docs/claude/20-judgment-rubrics.md) |
+| 要派 subagent 時抄模板 | [docs/claude/30-delegation-templates.md](docs/claude/30-delegation-templates.md) |
+| 要修改 CLAUDE.md 或 docs/claude/ 任何檔案 | [docs/claude/40-maintenance.md](docs/claude/40-maintenance.md)（先讀再改） |
+| session 開始接手不熟的狀況 | [docs/claude/50-letter.md](docs/claude/50-letter.md) |
+| 想知道這套制度為什麼長這樣 | [docs/claude/00-diagnosis.md](docs/claude/00-diagnosis.md) |
 
-### `pchome/services/` — application layer (state, threads, persistence)
+**每個 session 的底線**（詳細判準在 20-judgment-rubrics.md）：改 Python 跑 pyright、改前端跑 lint+build；行為改動要被實際執行過才算完成；驗收派 fresh-context agent，不自驗；教訓寫回對應檔案的「教訓紀錄」段。
 
-- **`event_bus.py`** — `EventBus` fans events out to SSE subscriber queues (drops on full).
-- **`product_store.py`** — `ProductStore`, persists `[{id, sale_time}]` to `products.json`.
-- **`checkout_store.py`** — `CheckoutRecordStore`, persists checkout records to `checkouts.json` (newest first; `clear_completed()` removes only `completed: true`).
-- **`product_id.py`** — `parse_product_ref()`: accepts a product-page URL (`…/prod/<ID>`) or a bare ID; single source of truth (frontend duplicates the regex only for input preview).
-- **`auth_service.py`** — cookie import for remote deployment: `import_auth(payload)` auto-detects Playwright storage_state JSON vs browser-extension cookie arrays (Cookie-Editor / EditThisCookie; converts `expirationDate`→`expires`, normalizes `sameSite`, drops extension-only fields) and writes `auth_state.json`. `status(live=)` optionally runs `check_session_standalone()` (debounced 30s, only on explicit user action).
-- **`job_service.py`** — the job/run-group model:
-  - **Job** = one product card, states: `idle → queued → monitoring → forsale → carted → awaiting_payment → success`, branches `soldout / cart_failed / failed / session_expired / not_logged_in` (sticky), cancel → `idle` (restartable).
-  - **RunGroup** = runtime entity, `gid = <sale_time-slug>#<seq>`, phases `pending → lead_wait → checking_session → monitoring → carting → checkout → holding → closed`. One thread + one browser per group (sync Playwright can't run on the asyncio loop).
-  - `start(pids)`: buckets by sale_time; joins a live group in a joinable phase (`membership.add()`; `False` = just froze → new group) or spawns a new one. `cancel(pids)`: removes the member (empty group → cancel event closes the browser); a group in `holding` is released (closes browser) instead.
-  - A **global checkout lock** serializes the add-to-cart→checkout phase across groups because the PChome cart is account-global.
-  - `_hold()` writes the checkout record **before** blocking, so it's visible in the panel while the browser stays open; releasing the hold marks it completed.
+## 環境
 
-### `pchome/api/` — FastAPI
-
-- **`deps.py`** — `Container` (store/checkout_store/bus/jobs/auth singletons) built in `create_app()`, accessed via `request.app.state.container`; `Container.state()` is the full snapshot every mutating route returns.
-- **`routers/`** — `products.py` (add by URL/ID, delete), `jobs.py` (`POST /api/jobs/start|cancel` with `{pids: []}`), `auth.py` (`POST /api/auth/import`, `GET /api/auth/status?live=`), `checkouts.py` (mark complete, clear completed), `events.py` (`GET /api/state`, `GET /api/events` SSE — sync generator; each subscribed tab holds a threadpool thread, acceptable for 1–2 tabs).
-- **`app.py`** — `create_app()`: routers first, then mounts `frontend/dist` at `/` (`StaticFiles(html=True)`); returns a 503 hint if the frontend isn't built.
-- SSE event types: `log`, `progress`, `job` (per-card `{pid, state, info, gid}`), `group` (`{gid, phase, member_pids}`; `closed` removes it), `checkout` (`{record}`).
-
-### `frontend/` — React + TypeScript + Vite
-
-- Only deps: react/react-dom; native `<dialog>`; plain CSS (`src/styles.css`, light/dark via `prefers-color-scheme`).
-- `src/state.tsx` — single `useReducer` context mirroring `/api/state` + SSE patches; `useSse` refetches the snapshot on (re)connect to heal missed events. `src/api.ts` — fetch wrappers (mutations return the full snapshot). `src/types.ts` — backend contract types + label maps.
-- `src/components/` — `TopBar` (auth badge + `LoginDialog` cookie paste/upload), `ProductGrid` (selection checkboxes + bulk bar + `AddProductDialog` URL/ID + datetime), `ProductCard` (開始/取消/結束 per state, group color stripe keyed by sale_time), `CheckoutGrid`/`CheckoutDetailDialog` (cart results table, payinfo capture, log tail, 標記完成/清除已完成), `LogPanel` (group-filterable).
-- Vite dev server proxies `/api` to `127.0.0.1:8787` (`vite.config.ts`).
-
-## Key design points to preserve when editing
-
-- PChome's `prod/button` and `cart modify` endpoints are JSONP-only (cross-origin, no CORS) and must be called via injected `<script>` tags inside `page.evaluate` (`JSONP_JS`), not `fetch`. `snapup` and `datetime` have CORS enabled and use `fetch` directly.
-- The product ID in URLs (e.g. `DGCQ39-A900JESMM`) is usually — but not always — prefixed by the real store code. `RS` for cart-modify must come from `product_info.resolve_store_codes()`, never from splitting the ID; the ID plus `-000` is only used for the cart's `TI` field. `PRODCOUNT`/`PRODTOTAL` in the cart-modify response are whole-cart running totals after that add, not per-item quantity/price.
-- Multiple product IDs are monitored concurrently in a single polling loop (one batched `prod/button` call), not one browser page per product.
-- Membership is frozen before add-to-cart (MAC 15s validity makes mid-cart mutation unsafe); never mutate a group's product set past the `carting` phase.
-- Web jobs run **headless** (remote deployment). With `AUTO_PAY=false` a remote user cannot manually pay in the held browser — document/recommend `AUTO_PAY=true` for remote setups.
-- `auth_state.json`, `.env` (CVC, AUTO_PAY), `products.json`, and `checkouts.json` are gitignored — never commit real values. The panel has **no auth layer**: default bind is 127.0.0.1; `--host 0.0.0.0` is allowed for remote deployment but must be protected by a reverse proxy (nginx basic auth / VPN / Cloudflare Access).
-
-## Environment
-
-Configured via `.env` (see `.env.example`):
-- `CVC` — credit card security code, autofilled at checkout.
-- `AUTO_PAY` — `true`/`false`; if `true`, auto-clicks the final payment confirmation button (recommended for remote/headless deployments).
+`.env`（見 `.env.example`）：`CVC`（結帳自動填入的信用卡安全碼）、`AUTO_PAY`（`true`/`false`，遠端/headless 部署建議 `true`）。
+執行期資料 `products.json` / `checkouts.json` / `auth_state.json` 均 gitignore。
+本機是 Fedora WSL2：`playwright install-deps` 會失敗，缺系統依賴改用 `dnf`。

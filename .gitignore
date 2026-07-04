@@ -23,8 +23,5 @@ data/
 # 環境變數（含敏感資料）
 .env
 
-
-# claude 相關
-.claude
 .playwright-*
 cli.config.json
