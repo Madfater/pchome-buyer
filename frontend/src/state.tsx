@@ -30,7 +30,7 @@ export type Action =
   | { type: 'clear-logs' }
   | { type: 'sse'; event: SseEvent }
 
-const initialState: AppState = {
+export const initialState: AppState = {
   auth: { has_auth_state: false, session_valid: null, checked_at: null },
   products: [],
   groups: {},
@@ -39,7 +39,7 @@ const initialState: AppState = {
   connected: false,
 }
 
-function reducer(state: AppState, action: Action): AppState {
+export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'snapshot':
       return { ...state, ...action.snapshot }

@@ -22,6 +22,10 @@ uv run pytest                           # 改了 core/timing、services/product_
 uv run --with pyright pyright pchome    # 改了 Python 必跑
 npm --prefix frontend run lint          # 改了前端必跑（oxlint）
 npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢查）
+npm --prefix frontend run test          # 改了 frontend/src 必跑（Vitest + React Testing Library）
+
+# e2e（真實瀏覽器打真實 FastAPI server；不在 uv run pytest 預設範圍，需先 npm run build）
+uv run pytest e2e                       # 只涵蓋不啟動 job 的 UI 流程，見 e2e/conftest.py 開頭註解
 ```
 
 ## 致命不變量（違反會 silent fail 或花冤枉錢，改碼前逐條核對）
@@ -50,7 +54,7 @@ npm --prefix frontend run build         # 改了前端必跑（含 tsc 型別檢
 | session 開始接手不熟的狀況 | [docs/claude/50-letter.md](docs/claude/50-letter.md) |
 | 想知道這套制度為什麼長這樣 | [docs/claude/00-diagnosis.md](docs/claude/00-diagnosis.md) |
 
-**每個 session 的底線**（詳細判準在 20-judgment-rubrics.md）：改 Python 跑 pyright（動到純邏輯模組另跑 `uv run pytest`）、改前端跑 lint+build；行為改動要被實際執行過才算完成；驗收派 fresh-context agent，不自驗；教訓寫回對應檔案的「教訓紀錄」段。
+**每個 session 的底線**（詳細判準在 20-judgment-rubrics.md）：改 Python 跑 pyright（動到純邏輯模組另跑 `uv run pytest`）、改前端跑 lint+build（動到 `frontend/src` 另跑 `npm run test`）；行為改動要被實際執行過才算完成；驗收派 fresh-context agent，不自驗；教訓寫回對應檔案的「教訓紀錄」段。
 
 ## 環境
 

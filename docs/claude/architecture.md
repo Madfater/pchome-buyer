@@ -1,7 +1,7 @@
 # Architecture 導航地圖
 
 > **本檔是導航用描述，不是契約。** 與程式碼衝突時一律以程式碼為準；引用本檔的函式名/欄位名之前先 Grep 確認存在。發現過時請順手更新本檔（規則見 [40-maintenance.md](40-maintenance.md)）。
-> **最後校準：2026-07-04**（對應 commit 672aadd）。距今超過 30 天或經歷大型 refactor 後，引用前應抽查校準。
+> **最後校準：2026-07-05**（新增 frontend 測試與 e2e/，尚未 commit；上一次對應 commit 672aadd）。距今超過 30 天或經歷大型 refactor 後，引用前應抽查校準。
 > 致命不變量不在本檔——在 CLAUDE.md，那份才是不能違反的。
 
 `main.py` 是薄入口 → `pchome/cli.py`。分層如下。
@@ -48,6 +48,10 @@
 - `src/state.tsx` — 單一 `useReducer` context，鏡像 `/api/state` + SSE 增量；`useSse` 在（重新）連線時重抓快照以修復漏掉的事件。`src/api.ts` — fetch 包裝（mutation 回傳完整快照）。`src/types.ts` — 後端契約型別＋label map。
 - `src/components/` — `TopBar`（auth 徽章 + `LoginDialog` cookie 貼上/上傳）、`ProductGrid`（勾選＋批次列＋`AddProductDialog` URL/ID＋datetime）、`ProductCard`（依狀態顯示 開始/取消/結束，group 色條以 sale_time 為 key）、`CheckoutGrid`/`CheckoutDetailDialog`（購物車結果表、payinfo 擷取、log 尾巴、標記完成/清除已完成）、`LogPanel`（可按 group 過濾）。
 - Vite dev server 把 `/api` proxy 到 `127.0.0.1:8787`（`vite.config.ts`）。
+- **測試**（`npm --prefix frontend run test`，Vitest + React Testing Library，91 個測試，`vitest.config.ts` + `src/test-setup.ts`）：每個元件/模組旁邊 `*.test.ts(x)` 共存；`state.tsx` 的 `reducer`/`initialState` 為了可測性改為 `export`（原本模組私有）。API 層一律 `vi.mock('../api')`＋`vi.mock('../toast')`＋`vi.mock('../state')`（只 mock 用到的 hook）隔離，不接真實 fetch／不啟真實 SSE。
+  - 教訓：jsdom 沒實作 `<dialog>` 的 `showModal()`/`close()`（只有 `open` 屬性），`test-setup.ts` 補了最小 polyfill（`showModal` 設 `open` 屬性、`close` 移除屬性並 dispatch `close` 事件）；沒有這段 polyfill 任何用到 `components/Dialog.tsx` 的元件測試都會噴 `showModal is not a function`。
+  - 教訓：沒開 `vitest.config.ts` 的 `test.globals: true`（刻意用明確 `import` 避免污染 ambient 型別），導致 `@testing-library/react` 靠偵測 global `afterEach` 才會註冊的自動 cleanup 不會生效——每個 render 出的 DOM 會累積到下一個 `it()`，出現「same text 找到兩個節點」的假錯誤。`test-setup.ts` 手動 `afterEach(() => cleanup())` 補上。
+  - 教訓：`userEvent.type()` 把 `{`/`[` 當成特殊按鍵語法解析（例：輸入 `{"cookies": []}` 會噴 `Expected repeat modifier...`），貼 JSON payload 一律改用 `fireEvent.change(el, { target: { value } })`，不要用 `user.type()`。
 
 ## `tests/` — 純邏輯測試（`uv run pytest`，192 個測試）
 
@@ -60,7 +64,16 @@
 - **`test_api_*.py`**（`test_api_products.py`/`test_api_jobs.py`/`test_api_auth.py`/`test_api_checkouts.py`/`test_api_events.py`）用 FastAPI `TestClient`（`conftest.py` 的 `client`/`container`/`app` fixture，`dev` 依賴新增 `httpx`）打完整 routers，驗證狀態碼與 `Container.state()` 快照形狀；`container` fixture 把 `ProductStore`/`CheckoutRecordStore`/`AUTH_STATE_FILE` 全部指向 `tmp_path`，**不透過 `create_app()`/`build_container()`**（那兩者會綁定專案根目錄的真實 `products.json`/`checkouts.json`/`auth_state.json`）。
   - 教訓：`AUTH_STATE_FILE` 在 `auth_service.py` 與 `session.py` 是各自獨立 `import` 的模組級名稱，只 monkeypatch 其中一個會讓 `has_auth_state()` 仍讀到真實檔案——`conftest.py` 的 `container` fixture 兩邊都換。
   - **`GET /api/events`（SSE）刻意不測**：`StreamingResponse` 的同步 generator 卡在 `queue.get(timeout=15)`，用 `TestClient.stream()` 消費時無法可靠地立即取消底層執行緒，實測會讓整個 `uv run pytest`（必跑 CI gate）掛住超過 2 分鐘——別再嘗試用 TestClient 測這支 endpoint，只測 `GET /api/state`。
-- 尚未覆蓋且不打算補：`GET /api/events` 串流本身（見上）、前端 TypeScript（無測試框架，需另外評估要不要引入）。
+- `tests/support/isolated_container.py` — `build_isolated_container(tmp_path, monkeypatch)`：把「組一個完全隔離的 `Container`（換掉兩份 `AUTH_STATE_FILE`、store 全指到 `tmp_path`）」這段邏輯抽出來，`tests/conftest.py` 的 `container` fixture 與 `e2e/conftest.py` 的 `container` fixture 都呼叫它，避免兩處重複維護同一段隔離邏輯。
+- 尚未覆蓋且不打算補：`GET /api/events` 串流本身（見上）。
+
+## `e2e/` — 真實瀏覽器測試（`uv run pytest e2e`，9 個測試，不在 `uv run pytest` 預設範圍）
+
+- 不屬於 `pyproject.toml` 的 `testpaths = ["tests"]`，所以預設 `uv run pytest` 不會跑到；要跑必須明確 `uv run pytest e2e`，且需要先 `npm --prefix frontend run build`（`frontend/dist` 不存在會 `pytest.skip`）。
+- **範圍刻意限縮，只測不會啟動 job 的 UI 流程**：新增/編輯/刪除商品（單筆＋批次）、登入憑證匯入（含失敗訊息）、checkout 列表顯示/標記完成/清除已完成。**完全不點「開始」/「啟動選取」**——那會在背景執行緒真的呼叫 `core/runner.py` 的 `run_snapup_job`，可能觸發真實網路查詢甚至真的開另一個 Playwright 瀏覽器連真實 PChome（CLAUDE.md 不變量 #7 的紅線）。同理也不點「檢查 session」（live 登入檢查）——只有在已匯入 auth_state 且 30 秒 debounce 過期時才會真的開 headless 瀏覽器連真實網域，e2e 完全不觸碰這顆按鈕。這是使用者在 2026-07-05 明確做的取捨（見 `e2e/conftest.py` 檔頭註解）。
+- `e2e/conftest.py` 的 `live_server` fixture：組一個真實的 `FastAPI` app（掛 routers + `frontend/dist` 靜態檔），在背景執行緒跑 `uvicorn.Server`（`socket.bind(("127.0.0.1", 0))` 探測空閒 port，輪詢 `server.started` 直到啟動完成或逾時），yield `(base_url, container)`——回傳 `container` 讓測試能直接呼叫 `container.store.add()`/`container.checkout_store.add()` 預先寫入資料（例如結帳紀錄），不必透過真的加車流程才能測 checkout 列表 UI。
+- `page`/`browser` fixture：直接用 `playwright.sync_api.sync_playwright()`（專案主依賴，非新增），headless chromium，每個測試獨立 `new_context()`。
+- 教訓：Playwright 的 `get_by_role`/`get_by_text` 預設是子字串比對，`"新增"` 會連 `"＋ 新增任務"` 一起命中（strict mode violation）；同一段文字常在畫面上出現兩次（group 標題 + 卡片內文，例如 `"立即監控"`）。前者用 `exact=True` 排除，後者用 `.first` 或改抓更精確的容器。
 
 ## 教訓紀錄
 
@@ -70,3 +83,7 @@
 - 2026-07-05 | 症狀: 想用 `TestClient.stream()` 測 `GET /api/events`（SSE），實跑後 `uv run pytest` 整個掛住超過 2 分鐘、`timeout` 包裝也攔不住 | 根因: `events.py` 的 SSE generator 是同步函式卡在 `queue.get(timeout=15)`，交給 starlette 丟到 threadpool 執行；`TestClient` 提前結束 `with client.stream()` 區塊時無法可靠取消該背景執行緒 | 規則: 不要用 `TestClient` 測真正的串流 endpoint，只測回傳快照的 `GET /api/state`；SSE 串流本身留給實跑（開瀏覽器連 `/api/events` 觀察）驗證。
 - 2026-07-05 | 症狀: 幫 `login_flow` 補測試時只各自斷言「goto 發生過」「click 發生過」「wait_for_user 發生過」「save_auth_state 發生過」，fresh-context verifier 用 mutation testing（把原始碼 `wait_for_user()`/`save_auth_state()` 呼叫順序對調）發現測試仍全過——證明「各自發生過一次」測不出「順序錯了」這種 bug | 根因: 各項副作用記在各自獨立的變數（`waited`/`page.clicked`/`browser.closed`），沒有共用一份按時間序記錄的 log | 規則: 測「A 必須發生在 B 之前」這種順序不變量時，把所有相關 fake 物件的呼叫都 append 進同一份共用 `calls: list[str]`，最後斷言整個序列（例：`assert calls == ["goto","click","wait","save","close"]`），不要只斷言各自的旗標；懷疑測試是否測到位時，親自對原始碼做一次小 mutation 重跑測試確認會紅，比只看測試綠燈可靠。
 - 2026-07-05 | 症狀: 手動對 `session.py` 做 mutation-testing（改順序→測試紅→改回原樣→測試卻仍然紅，明明 `diff` 確認檔案內容已跟原始一模一樣）| 根因: 在同一秒內快速「寫入 mutated 版本→跑 pytest→寫回原版→再跑 pytest」，`__pycache__/*.pyc` 的 mtime-based 快取失效判斷在同一秒窗口內可能誤判為快取仍有效，導致還在跑舊的 mutated bytecode | 規則: 手動 mutation-testing 時，每次改完原始碼、跑 pytest 前，先 `find . -name "__pycache__" -exec rm -rf {} +` 清快取，或用 `python -B`（不寫入 bytecode），否則會出現「明明改回去了、測試卻還是紅」的假警報，白白懷疑錯地方。
+- 2026-07-05 | 症狀: 補 `components/Dialog.tsx` 的元件測試時，任何觸發 `open` 從 false→true 的 render 都噴 `TypeError: el.showModal is not a function` | 根因: jsdom（vitest 預設環境）沒有實作 `HTMLDialogElement.showModal()`/`close()`，只認得 `open` 屬性 | 規則: `src/test-setup.ts` 補了最小 polyfill；任何新測試環境（例如換掉 jsdom）都要先確認這兩個方法有沒有被實作。
+- 2026-07-05 | 症狀: 同一個 `*.test.tsx` 檔案裡，第二個以後的 `it()` 常常「找到兩個相同節點」而失敗，即使每個 `it()` 都各自 `render()` 一次 | 根因: `vitest.config.ts` 沒開 `test.globals: true`（刻意用明確 import 避免 ambient 型別污染），而 `@testing-library/react` 的自動 cleanup 是靠偵測 global `afterEach` 才註冊，沒偵測到就完全不會清理，DOM 在測試間累積 | 規則: 手動 import cleanup：`test-setup.ts` 裡 `import { afterEach } from 'vitest'; import { cleanup } from '@testing-library/react'; afterEach(() => cleanup())`。
+- 2026-07-05 | 症狀: `userEvent.type(textarea, '{"cookies": []}')` 噴 `Expected repeat modifier or release modifier or "}"` | 根因: `userEvent.type()` 把字串裡的 `{`/`[` 解析成特殊按鍵語法（例如 `{enter}`），JSON 內容天生充滿這些字元 | 規則: 貼 JSON/含大括號內容一律用 `fireEvent.change(el, { target: { value } })`，不要用 `user.type()`。
+- 2026-07-05 | 症狀: e2e 測試裡 `page.get_by_role("button", name="新增").click()` 噴 strict mode violation，命中「＋ 新增任務」跟「新增」兩顆按鈕 | 根因: Playwright 的 accessible-name 比對預設是子字串，不是精確相等 | 規則: 兩顆按鈕文字有包含關係時，短的那顆（或容易被包含的那顆）加 `exact=True`；同一段文字在畫面上合法地出現兩次（例如 group 標題與卡片內文都顯示 `"立即監控"`）時用 `.first`，而不是想辦法讓文字唯一。
