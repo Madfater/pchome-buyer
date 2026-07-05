@@ -46,9 +46,18 @@ jobs:
           DOCKHAND_WEBHOOK_URL: ${{ secrets.DOCKHAND_WEBHOOK_URL }}
           DOCKHAND_WEBHOOK_SECRET: ${{ secrets.DOCKHAND_WEBHOOK_SECRET }}
         run: |
+          if [ -z "$DOCKHAND_WEBHOOK_URL" ] || [ -z "$DOCKHAND_WEBHOOK_SECRET" ]; then
+            echo "::error::DOCKHAND_WEBHOOK_URL or DOCKHAND_WEBHOOK_SECRET repo secret is not set"
+            exit 1
+          fi
           PAYLOAD='{}'
           SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$DOCKHAND_WEBHOOK_SECRET" | awk '{print $NF}')"
-          curl -sf -X POST "$DOCKHAND_WEBHOOK_URL" \
+          RESPONSE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST "$DOCKHAND_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -H "X-Hub-Signature-256: $SIGNATURE" \
-            -d "$PAYLOAD"
+            -d "$PAYLOAD")
+          echo "HTTP status: $RESPONSE"
+          echo "Response body: $(cat /tmp/response.txt)"
+          if [ "$RESPONSE" -ge 400 ]; then
+            exit 1
+          fi
