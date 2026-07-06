@@ -2,7 +2,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from pchome.api.routers import auth, checkouts, events, jobs, products
+from pchome.api.routers import auth, checkouts, events, jobs, products, settings
 from tests.support.isolated_container import build_isolated_container
 
 
@@ -29,6 +29,7 @@ def app(container):
         auth.router,
         checkouts.router,
         events.router,
+        settings.router,
     ):
         fastapi_app.include_router(router)
     return fastapi_app

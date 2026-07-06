@@ -32,6 +32,7 @@
 
 ## 未完成交接
 
-（無。上一條「實測 verifier / deep-reviewer」已於 2026-07-04 另一 session 完成，見 10-model-dispatch.md 教訓紀錄。）
+- 2026-07-06 | **CLI 移除計畫**：使用者提到之後要把 `main.py`/`cli.py` 的 `login`/`buy` 指令整個拿掉，只留 web 服務當唯一入口——目標是 `uv run main.py`（不帶任何子指令）就直接啟動 web 服務，取代現在還要多打一個 `web` 子指令。這次的設定視窗改動（CVC/AUTO_PAY/輪詢調校移入 MongoDB `settings` collection）刻意跳過 `cli.py` 的搶購流程改動：`cmd_buy` 沒接 `SettingsStore`，`checkout.py` 的 `cvc`/`auto_pay` 對 CLI `buy` 會永遠拿到 `JobConfig` 的出廠預設值（`cvc=""`/`auto_pay=False`）。之後真的執行 CLI 移除工程時要一併處理：`cli.py`、`test_cli_helpers.py`、README/docs 提到 CLI 的地方，並把 `main()` 改成無子指令時直接呼叫現在 `cmd_web` 那段邏輯。
+- 2026-07-06 | **Mongo 化其他 store**：這次只把 settings 搬進 MongoDB（`pchome/services/settings_store.py` + `mongo.py`）；`ProductStore`/`CheckoutRecordStore`/`AuthService` 目前仍是 `products.json`/`checkouts.json`/`auth_state.json` 檔案。使用者提到之後有計畫也遷過去——`pchome/services/mongo.py` 的 `get_db()` 共用 client 存取點就是為了讓那次遷移直接重用，不用重新設計連線層。
 
 （2026-07-04 制度建立 session：A–G 與收尾全部完成，經 opus 對抗審查修正 5 處。若你因中斷接手，先跑收尾三步：對抗審查、read-back、給使用者總結。）

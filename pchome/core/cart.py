@@ -4,14 +4,16 @@ import threading
 from dataclasses import dataclass, field
 
 from .cancel import cancellable_sleep
-from .config import CART_MODIFY_API, SNAPUP_API
+from .config import (
+    CART_MODIFY_API,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_DELAY_SECS,
+    SNAPUP_API,
+)
 from .jsapi import ADD_TO_CART_JS
 from .product_info import resolve_store_codes
 from .reporter import Reporter
 from .timing import now_ms
-
-MAX_RETRIES = 3
-RETRY_DELAY_SECS = 0.3
 
 
 @dataclass
@@ -92,6 +94,9 @@ def add_with_retry(
     product_ids: list[str],
     reporter: Reporter,
     cancel: threading.Event | None = None,
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_delay_secs: float = DEFAULT_RETRY_DELAY_SECS,
 ) -> tuple[list[str], list[str], list[CartItemResult]]:
     """並行加入購物車並重試失敗商品（售完不重試）
 
@@ -103,7 +108,7 @@ def add_with_retry(
     # 監控階段已暖快取時為即時；此處是最後保險（動態加入的成員）
     stores = resolve_store_codes(product_ids, reporter)
 
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, max_retries + 1):
         results = add_to_cart_batch(page, pending, stores)
         pending = []
         prev_count = None
@@ -143,11 +148,11 @@ def add_with_retry(
                 pending.append(pid)
         if not pending:
             break
-        if attempt < MAX_RETRIES:
+        if attempt < max_retries:
             reporter.log(
-                f"重試加入購物車 ({attempt}/{MAX_RETRIES}): {', '.join(pending)}"
+                f"重試加入購物車 ({attempt}/{max_retries}): {', '.join(pending)}"
             )
-            cancellable_sleep(RETRY_DELAY_SECS, cancel)
+            cancellable_sleep(retry_delay_secs, cancel)
 
     for pid in pending:
         reporter.log(f"商品 {pid} 加入購物車失敗")

@@ -91,6 +91,19 @@ export interface ImportResult {
   error: string
 }
 
+// GET/PATCH /api/settings：CVC/AUTO_PAY 與搶購時機/進階調校，存在 MongoDB
+export interface Settings {
+  cvc: string
+  auto_pay: boolean
+  default_interval_secs: number
+  default_lead_secs: number
+  fast_poll_window_secs: number
+  slow_poll_factor: number
+  resync_secs: number
+  max_retries: number
+  retry_delay_secs: number
+}
+
 export type SseEvent =
   | { type: 'log'; gid: string; msg: string }
   | { type: 'progress'; gid: string; msg: string }

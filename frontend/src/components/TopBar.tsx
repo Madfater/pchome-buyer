@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useAppState } from '../state'
-import LoginDialog from './LoginDialog'
+import SettingsDialog from './SettingsDialog'
 
 export default function TopBar() {
   const { auth, connected } = useAppState()
-  const [loginOpen, setLoginOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const loggedIn = auth.has_auth_state
   const sessionBad = auth.session_valid === false
@@ -16,8 +16,18 @@ export default function TopBar() {
       <span className={`badge ${loggedIn && !sessionBad ? 'ok' : 'err'}`}>
         {!loggedIn ? '未登入' : sessionBad ? 'session 過期' : '已登入'}
       </span>
-      <button onClick={() => setLoginOpen(true)}>登入</button>
-      <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <button
+        className="icon-btn"
+        aria-label="設定"
+        title="設定"
+        onClick={() => setSettingsOpen(true)}
+      >
+        ⚙
+      </button>
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </header>
   )
 }

@@ -7,10 +7,14 @@ services:
       - "127.0.0.1:8787:8787"
     environment:
       - TZ=Asia/Taipei # 開賣時間以此時區解析
-      - CVC=${CVC}
-      - AUTO_PAY=${AUTO_PAY}
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DB=pchome_buyer
+      # CVC/AUTO_PAY 等實際設定值已移至面板的「設定」視窗，存在 Mongo 裡，不再透過環境變數帶入
+    depends_on:
+      mongo:
+        condition: service_healthy
     volumes:
-      - ./data:/data # auth_state.json / products.json / checkouts.json
+      - ./data:/data # auth_state.json / products.json / checkouts.json（settings 已搬到 Mongo）
     init: true # 回收 Chromium 子行程
     shm_size: 1gb # Chromium 需要較大的 /dev/shm
     restart: unless-stopped
@@ -25,3 +29,18 @@ services:
       interval: 30s
       timeout: 10s
       start_period: 15s
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+    # 刻意不對外 publish port，只在 compose 內部網路可連線
+
+volumes:
+  mongo-data:

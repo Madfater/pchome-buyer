@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..core.config import PROJECT_ROOT
 from .deps import build_container
-from .routers import auth, checkouts, events, jobs, products
+from .routers import auth, checkouts, events, jobs, products, settings
 
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
@@ -23,6 +23,7 @@ def create_app(dist_dir: Path = FRONTEND_DIST) -> FastAPI:
         auth.router,
         checkouts.router,
         events.router,
+        settings.router,
     ):
         app.include_router(router)
 

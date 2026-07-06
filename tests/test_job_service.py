@@ -1,13 +1,16 @@
 import threading
 
+import mongomock
 import pytest
 
 from pchome.core.runner import JobResult
 from pchome.services import job_service as job_service_module
+from pchome.services import settings_store as settings_store_module
 from pchome.services.checkout_store import CheckoutRecordStore
 from pchome.services.event_bus import EventBus
 from pchome.services.job_service import JobService
 from pchome.services.product_store import ProductStore
+from pchome.services.settings_store import SettingsStore
 
 
 @pytest.fixture(autouse=True)
@@ -17,11 +20,16 @@ def no_network_store_resolve(monkeypatch):
 
 
 @pytest.fixture
-def svc(tmp_path):
+def svc(tmp_path, monkeypatch):
+    # 絕不能讓 SettingsStore 的一次性 migration 讀到專案根目錄真實的 .env
+    monkeypatch.setattr(
+        settings_store_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
+    )
     store = ProductStore(tmp_path / "products.json")
     checkout_store = CheckoutRecordStore(tmp_path / "checkouts.json")
     bus = EventBus()
-    return JobService(store, checkout_store, bus)
+    settings = SettingsStore(db=mongomock.MongoClient()["test"])
+    return JobService(store, checkout_store, bus, settings)
 
 
 def install_fake_run(monkeypatch, phase="monitoring"):

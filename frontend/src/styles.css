@@ -98,6 +98,11 @@ button.linklike {
   padding: 2px 6px;
   color: var(--muted);
 }
+button.icon-btn {
+  padding: 6px 10px;
+  font-size: 17px;
+  line-height: 1;
+}
 
 input,
 textarea,
@@ -388,6 +393,16 @@ dialog::backdrop {
   font-family: ui-monospace, monospace;
   font-size: 12.5px;
 }
+.dialog-body label.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.dialog-body input[type='checkbox'] {
+  width: auto;
+}
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -395,6 +410,24 @@ dialog::backdrop {
 }
 .dialog-wide {
   max-width: min(760px, 94vw);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.settings-section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+.settings-section h4 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
 }
 
 .kv {

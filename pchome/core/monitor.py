@@ -30,6 +30,10 @@ def wait_for_sale(
     sale_ts: float | None,
     reporter: Reporter,
     cancel: threading.Event | None = None,
+    *,
+    fast_poll_window_secs: float = FAST_POLL_WINDOW_SECS,
+    slow_poll_factor: float = SLOW_POLL_FACTOR,
+    resync_secs: float = RESYNC_SECS,
 ) -> list[str]:
     """輪詢等待多個商品開賣，回傳可購買的商品 ID 列表
 
@@ -63,7 +67,7 @@ def wait_for_sale(
     if sale_ts is not None:
         reporter.log(
             f"開賣時間: {datetime.fromtimestamp(sale_ts):%Y/%m/%d %H:%M:%S}"
-            f"，前 {FAST_POLL_WINDOW_SECS} 秒起全速輪詢"
+            f"，前 {fast_poll_window_secs} 秒起全速輪詢"
         )
     reporter.log(f"監控 {len(initial_ids)} 個商品...")
 
@@ -123,12 +127,12 @@ def wait_for_sale(
 
         now = time.time()
 
-        # 每 RESYNC_SECS 秒重新對時一次，並預熱與購物車主機的 TLS 連線，
+        # 每 resync_secs 秒重新對時一次，並預熱與購物車主機的 TLS 連線，
         # 讓開賣瞬間的 snapup 呼叫免付握手成本
-        if now - last_sync >= RESYNC_SECS:
+        if now - last_sync >= resync_secs:
             offset = get_server_offset(page)
             last_sync = now
-        if now - last_warm >= RESYNC_SECS:
+        if now - last_warm >= resync_secs:
             page.evaluate(
                 f"fetch('{CART_HOST}', {{mode: 'no-cors', cache: 'no-store'}})"
                 ".catch(() => {})"
@@ -137,8 +141,8 @@ def wait_for_sale(
 
         # 分段輪詢：離開賣還久就放慢，接近開賣才全速
         cur_interval = interval
-        if sale_ts is not None and (sale_ts - (now + offset)) > FAST_POLL_WINDOW_SECS:
-            cur_interval = interval * SLOW_POLL_FACTOR
+        if sale_ts is not None and (sale_ts - (now + offset)) > fast_poll_window_secs:
+            cur_interval = interval * slow_poll_factor
 
         server_now = datetime.fromtimestamp(now + offset)
         statuses = " ".join(

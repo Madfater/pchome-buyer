@@ -10,6 +10,7 @@ from ..services.checkout_store import CheckoutRecordStore
 from ..services.event_bus import EventBus
 from ..services.job_service import JobService
 from ..services.product_store import ProductStore
+from ..services.settings_store import SettingsStore
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Container:
     bus: EventBus
     jobs: JobService
     auth: AuthService
+    settings: SettingsStore
 
     def state(self) -> dict:
         """完整狀態快照：所有變更狀態的路由都回傳這個形狀"""
@@ -35,9 +37,10 @@ def build_container() -> Container:
     store = ProductStore(PRODUCTS_FILE)
     checkout_store = CheckoutRecordStore(CHECKOUTS_FILE)
     bus = EventBus()
-    jobs = JobService(store, checkout_store, bus)
+    settings = SettingsStore()
+    jobs = JobService(store, checkout_store, bus, settings)
     auth = AuthService()
-    return Container(store, checkout_store, bus, jobs, auth)
+    return Container(store, checkout_store, bus, jobs, auth, settings)
 
 
 def get_container(request: Request) -> Container:

@@ -6,11 +6,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
+LEGACY_ENV_FILE = PROJECT_ROOT / ".env"
+load_dotenv(LEGACY_ENV_FILE)
 
 AUTH_STATE_FILE = PROJECT_ROOT / "auth_state.json"
 PRODUCTS_FILE = PROJECT_ROOT / "products.json"
 CHECKOUTS_FILE = PROJECT_ROOT / "checkouts.json"
+
+# MongoDB 連線資訊（啟動前就要知道，無法存在資料庫裡）
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+MONGO_DB_NAME = os.getenv("MONGO_DB", "pchome_buyer")
 
 # PChome API endpoints
 HOME_URL = "https://24h.pchome.com.tw/"
@@ -42,13 +47,6 @@ RESYNC_SECS = 60
 DEFAULT_INTERVAL_SECS = 0.5
 # 有開賣時間時，提前多久啟動監控（秒），原 schedule.sh 的「提前 5 分鐘」
 DEFAULT_LEAD_SECS = 300
-
-
-def get_cvc() -> str:
-    """信用卡安全碼（來自 .env 的 CVC）"""
-    return os.getenv("CVC", "")
-
-
-def is_auto_pay() -> bool:
-    """是否自動點擊「確認付款」（來自 .env 的 AUTO_PAY）"""
-    return os.getenv("AUTO_PAY", "false").lower() == "true"
+# 加入購物車失敗的重試次數（含首次）與重試間隔（秒）
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_RETRY_DELAY_SECS = 0.3

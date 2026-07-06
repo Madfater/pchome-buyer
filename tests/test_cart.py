@@ -127,14 +127,16 @@ class TestAddToCartBatch:
 
 
 class TestAddWithRetry:
-    def _run(self, monkeypatch, attempts, product_ids):
+    def _run(self, monkeypatch, attempts, product_ids, **kwargs):
         monkeypatch.setattr(
             "pchome.core.cart.resolve_store_codes",
             lambda pids, reporter=None: {pid: pid.split("-")[0] for pid in pids},
         )
         page = FakePage(attempts)
         reporter = FakeReporter()
-        success, pending, ordered = add_with_retry(page, product_ids, reporter)
+        success, pending, ordered = add_with_retry(
+            page, product_ids, reporter, **kwargs
+        )
         return page, reporter, success, pending, ordered
 
     def test_all_succeed_on_first_attempt(self, monkeypatch):
@@ -202,3 +204,14 @@ class TestAddWithRetry:
         assert success == ["A-1"]
         assert pending == []
         assert ("B-2", "soldout") in reporter.statuses
+
+    def test_custom_max_retries_stops_after_configured_attempts(self, monkeypatch):
+        page, reporter, success, pending, ordered = self._run(
+            monkeypatch,
+            [[_modify_fail("A-1")], [_modify_fail("A-1")], [_modify_fail("A-1")]],
+            ["A-1"],
+            max_retries=1,
+        )
+        assert success == []
+        assert pending == ["A-1"]
+        assert len(page.calls) == 1

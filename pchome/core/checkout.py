@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from .config import CART_URL, PAYINFO_URL, get_cvc, is_auto_pay
+from .config import CART_URL, PAYINFO_URL
 from .reporter import Reporter
 from .timing import now_ms
 
@@ -56,7 +56,9 @@ class CheckoutInfo:
         }
 
 
-def go_to_checkout(page, reporter: Reporter) -> CheckoutInfo:
+def go_to_checkout(
+    page, reporter: Reporter, *, cvc: str = "", auto_pay: bool = False
+) -> CheckoutInfo:
     """跳轉到結帳頁面，自動填寫 CVC 並可選自動付款，回傳擷取的結帳資訊"""
     info = CheckoutInfo()
     reporter.log("正在前往結帳頁面...")
@@ -76,24 +78,23 @@ def go_to_checkout(page, reporter: Reporter) -> CheckoutInfo:
         _capture_payinfo(page, info)
         return info
 
-    cvc = get_cvc()
     if cvc:
         page.locator(CVC_SELECTOR).first.fill(cvc)
         info.cvc_filled = True
         reporter.log("已自動填入信用卡安全碼")
     else:
-        reporter.log("未設定 CVC，請手動填寫安全碼（設定 .env 中的 CVC）")
+        reporter.log("未設定 CVC，請手動填寫安全碼（面板設定視窗的「付款」區塊）")
 
     _capture_payinfo(page, info)
 
-    if is_auto_pay():
+    if auto_pay:
         pay_btn = page.locator("button:has-text('確認付款')").first
         reporter.log("即將自動點擊「確認付款」...")
         pay_btn.click(timeout=15000)  # click 會自動等待按鈕可見且 enabled
         info.auto_pay_clicked = True
         reporter.log(f"[{now_ms()}] 已點擊確認付款！")
     else:
-        reporter.log("AUTO_PAY 未啟用，請手動點擊「確認付款」")
+        reporter.log("自動付款未啟用，請手動點擊「確認付款」")
     return info
 
 

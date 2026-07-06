@@ -23,6 +23,7 @@ from ..core.timing import parse_sale_time
 from .checkout_store import CheckoutRecordStore
 from .event_bus import EventBus
 from .product_store import ProductStore
+from .settings_store import SettingsStore
 
 # 這些 phase 期間新 job 可併入既有 run-group
 _JOINABLE_PHASES = {"pending", "lead_wait", "checking_session", "monitoring"}
@@ -101,10 +102,12 @@ class JobService:
         store: ProductStore,
         checkout_store: CheckoutRecordStore,
         bus: EventBus,
+        settings: SettingsStore,
     ):
         self.store = store
         self.checkout_store = checkout_store
         self.bus = bus
+        self.settings = settings
         self.checkout_lock = threading.Lock()
         self._lock = threading.Lock()
         self._groups: dict[str, RunGroup] = {}
@@ -216,10 +219,20 @@ class JobService:
             self._finish_group(group, "failed")
             return
 
+        s = self.settings.get()
         cfg = JobConfig(
             product_ids=group.membership.active_ids(),
             sale_ts=sale_ts,
             headless=True,
+            interval=s["default_interval_secs"],
+            lead=s["default_lead_secs"],
+            fast_poll_window_secs=s["fast_poll_window_secs"],
+            slow_poll_factor=s["slow_poll_factor"],
+            resync_secs=s["resync_secs"],
+            max_retries=s["max_retries"],
+            retry_delay_secs=s["retry_delay_secs"],
+            cvc=s["cvc"],
+            auto_pay=s["auto_pay"],
         )
         try:
             result = run_snapup_job(

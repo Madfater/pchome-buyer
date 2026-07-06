@@ -2,6 +2,7 @@ import type {
   AuthStatus,
   ImportResult,
   ProductPreview,
+  Settings,
   Snapshot,
 } from './types'
 
@@ -64,3 +65,8 @@ export const importAuth = (payload: string) =>
 
 export const fetchAuthStatus = (live: boolean) =>
   api<AuthStatus>('GET', `/api/auth/status?live=${live ? 'true' : 'false'}`)
+
+export const fetchSettings = () => api<Settings>('GET', '/api/settings')
+
+export const updateSettings = (partial: Partial<Settings>) =>
+  api<Settings>('PATCH', '/api/settings', partial)

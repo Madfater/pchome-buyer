@@ -1,6 +1,5 @@
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from pchome.core import checkout as checkout_module
 from pchome.core.checkout import (
     CVC_SELECTOR,
     _ITEM_ROW_SELECTORS,
@@ -102,14 +101,8 @@ class FakePage:
         return FakeLocator(count=0)
 
 
-def _patch_env(monkeypatch, *, cvc="", auto_pay=False):
-    monkeypatch.setattr(checkout_module, "get_cvc", lambda: cvc)
-    monkeypatch.setattr(checkout_module, "is_auto_pay", lambda: auto_pay)
-
-
 class TestCvcField:
-    def test_missing_cvc_field_returns_early_but_still_captures(self, monkeypatch):
-        _patch_env(monkeypatch)
+    def test_missing_cvc_field_returns_early_but_still_captures(self):
         reporter = FakeReporter()
         page = FakePage(cvc_found=False)
 
@@ -119,19 +112,17 @@ class TestCvcField:
         assert info.raw_text == "訂單內容"
         assert any("未找到 CVC 欄位" in line for line in reporter.logs)
 
-    def test_fills_cvc_when_configured(self, monkeypatch):
-        _patch_env(monkeypatch, cvc="123")
+    def test_fills_cvc_when_configured(self):
         reporter = FakeReporter()
         page = FakePage()
 
-        info = go_to_checkout(page, reporter)
+        info = go_to_checkout(page, reporter, cvc="123")
 
         assert page.cvc_locator.fill_calls == ["123"]
         assert info.cvc_filled is True
         assert any("已自動填入信用卡安全碼" in line for line in reporter.logs)
 
-    def test_skips_fill_when_cvc_not_configured(self, monkeypatch):
-        _patch_env(monkeypatch, cvc="")
+    def test_skips_fill_when_cvc_not_configured(self):
         reporter = FakeReporter()
         page = FakePage()
 
@@ -143,32 +134,29 @@ class TestCvcField:
 
 
 class TestAutoPay:
-    def test_clicks_pay_button_when_auto_pay_enabled(self, monkeypatch):
-        _patch_env(monkeypatch, cvc="123", auto_pay=True)
+    def test_clicks_pay_button_when_auto_pay_enabled(self):
         reporter = FakeReporter()
         page = FakePage()
 
-        info = go_to_checkout(page, reporter)
+        info = go_to_checkout(page, reporter, cvc="123", auto_pay=True)
 
         assert page.pay_locator.click_calls == [15000]
         assert info.auto_pay_clicked is True
         assert any("已點擊確認付款" in line for line in reporter.logs)
 
-    def test_does_not_click_when_auto_pay_disabled(self, monkeypatch):
-        _patch_env(monkeypatch, cvc="123", auto_pay=False)
+    def test_does_not_click_when_auto_pay_disabled(self):
         reporter = FakeReporter()
         page = FakePage()
 
-        info = go_to_checkout(page, reporter)
+        info = go_to_checkout(page, reporter, cvc="123")
 
         assert page.pay_locator.click_calls == []
         assert info.auto_pay_clicked is False
-        assert any("AUTO_PAY 未啟用" in line for line in reporter.logs)
+        assert any("自動付款未啟用" in line for line in reporter.logs)
 
 
 class TestCapturePayinfo:
-    def test_extracts_total_and_items(self, monkeypatch):
-        _patch_env(monkeypatch)
+    def test_extracts_total_and_items(self):
         page = FakePage(
             total_locator=FakeLocator(count=1, texts=["NT$999"]),
             item_locator=FakeLocator(count=2, texts=["商品A\n數量1", "商品B\n數量2"]),
@@ -183,11 +171,10 @@ class TestCapturePayinfo:
         ]
         assert info.error == ""
 
-    def test_raw_text_failure_does_not_interrupt_payment_flow(self, monkeypatch):
-        _patch_env(monkeypatch, cvc="123", auto_pay=True)
+    def test_raw_text_failure_does_not_interrupt_payment_flow(self):
         page = FakePage(body_locator=BoomLocator())
 
-        info = go_to_checkout(page, FakeReporter())
+        info = go_to_checkout(page, FakeReporter(), cvc="123", auto_pay=True)
 
         assert info.raw_text == ""
         assert "raw_text" in info.error
@@ -195,8 +182,7 @@ class TestCapturePayinfo:
         assert info.cvc_filled is True
         assert info.auto_pay_clicked is True
 
-    def test_structured_capture_failure_keeps_raw_text(self, monkeypatch):
-        _patch_env(monkeypatch)
+    def test_structured_capture_failure_keeps_raw_text(self):
         page = FakePage(total_locator=BoomCountLocator())
 
         info = go_to_checkout(page, FakeReporter())
@@ -204,8 +190,7 @@ class TestCapturePayinfo:
         assert info.raw_text == "訂單內容"
         assert "structured" in info.error
 
-    def test_no_matching_selectors_leaves_total_and_items_empty(self, monkeypatch):
-        _patch_env(monkeypatch)
+    def test_no_matching_selectors_leaves_total_and_items_empty(self):
         info = go_to_checkout(FakePage(), FakeReporter())
         assert info.total == ""
         assert info.items == []

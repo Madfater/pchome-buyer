@@ -181,3 +181,29 @@ class TestSaleTimePolling:
         assert captured
         # 全速輪詢是基礎 interval(1.0) 的 ±50%，上限 1.5
         assert captured[0] <= 1.5
+
+    def test_custom_fast_poll_window_and_slow_factor_are_respected(self, monkeypatch):
+        """離開賣還有 20 秒：預設 window(15) 會走慢速，自訂 window(30) 會走快速"""
+        captured = []
+        monkeypatch.setattr(
+            monitor_module,
+            "cancellable_sleep",
+            lambda secs, cancel=None: captured.append(secs),
+        )
+        import time
+
+        sale_ts = time.time() + 20
+        page = FakePage([[_notready("A-1")], [_forsale("A-1")]])
+        wait_for_sale(
+            page,
+            GroupMembership(["A-1"]),
+            1.0,
+            sale_ts,
+            FakeReporter(),
+            fast_poll_window_secs=30,
+            slow_poll_factor=10,
+        )
+        assert captured
+        # window 拉大到 30 秒後，20 秒前就已經算「接近開賣」，應該用全速 interval(<=1.5)
+        # 而不是 slow_poll_factor(10) 造成的慢速輪詢
+        assert captured[0] <= 1.5

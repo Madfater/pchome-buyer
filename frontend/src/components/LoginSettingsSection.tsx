@@ -3,14 +3,8 @@ import { fetchAuthStatus, importAuth } from '../api'
 import { useAppDispatch } from '../state'
 import { useToast } from '../toast'
 import type { ImportResult } from '../types'
-import Dialog from './Dialog'
 
-interface Props {
-  open: boolean
-  onClose: () => void
-}
-
-export default function LoginDialog({ open, onClose }: Props) {
+export default function LoginSettingsSection() {
   const dispatch = useAppDispatch()
   const toast = useToast()
   const [payload, setPayload] = useState('')
@@ -64,8 +58,7 @@ export default function LoginDialog({ open, onClose }: Props) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose}>
-      <h3>匯入登入憑證</h3>
+    <>
       <p className="hint" style={{ margin: 0 }}>
         在本機執行 <code>python main.py login</code> 後貼上 auth_state.json
         的內容， 或貼上瀏覽器擴充功能（Cookie-Editor 等）匯出的 cookie JSON。
@@ -100,7 +93,6 @@ export default function LoginDialog({ open, onClose }: Props) {
         <button onClick={doCheck} disabled={checking}>
           {checking ? '檢查中…' : '檢查 session'}
         </button>
-        <button onClick={onClose}>關閉</button>
         <button
           className="primary"
           onClick={doImport}
@@ -109,6 +101,6 @@ export default function LoginDialog({ open, onClose }: Props) {
           {busy ? '匯入中…' : '匯入'}
         </button>
       </div>
-    </Dialog>
+    </>
   )
 }

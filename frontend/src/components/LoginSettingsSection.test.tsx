@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api'
-import LoginDialog from './LoginDialog'
+import LoginSettingsSection from './LoginSettingsSection'
 
 vi.mock('../api')
 
@@ -12,13 +12,13 @@ vi.mock('../toast', () => ({ useToast: () => toastSpy }))
 const dispatchSpy = vi.fn()
 vi.mock('../state', () => ({ useAppDispatch: () => dispatchSpy }))
 
-describe('LoginDialog', () => {
+describe('LoginSettingsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('disables the import button until there is payload text', () => {
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     expect(screen.getByRole('button', { name: '匯入' })).toBeDisabled()
 
@@ -39,7 +39,7 @@ describe('LoginDialog', () => {
       error: '',
     })
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), {
       target: { value: '{"cookies": []}' },
@@ -68,7 +68,7 @@ describe('LoginDialog', () => {
       error: '',
     })
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     fireEvent.change(screen.getByLabelText('憑證內容（JSON）'), {
       target: { value: '[]' },
@@ -85,7 +85,7 @@ describe('LoginDialog', () => {
   it('shows a toast on import failure without touching auth state', async () => {
     vi.mocked(api.importAuth).mockRejectedValue(new Error('JSON 解析失敗'))
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     await user.type(screen.getByLabelText('憑證內容（JSON）'), 'not json')
     await user.click(screen.getByRole('button', { name: '匯入' }))
@@ -101,7 +101,7 @@ describe('LoginDialog', () => {
       checked_at: 123,
     })
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     await user.click(screen.getByRole('button', { name: '檢查 session' }))
 
@@ -122,7 +122,7 @@ describe('LoginDialog', () => {
       checked_at: 123,
     })
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     await user.click(screen.getByRole('button', { name: '檢查 session' }))
 
@@ -133,7 +133,7 @@ describe('LoginDialog', () => {
 
   it('reads payload from a selected file', async () => {
     const user = userEvent.setup()
-    render(<LoginDialog open onClose={vi.fn()} />)
+    render(<LoginSettingsSection />)
 
     const file = new File(['{"cookies": [{"name": "a"}]}'], 'auth_state.json', {
       type: 'application/json',

@@ -23,7 +23,12 @@ from .config import (
     AUTH_STATE_FILE,
     DEFAULT_INTERVAL_SECS,
     DEFAULT_LEAD_SECS,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_DELAY_SECS,
+    FAST_POLL_WINDOW_SECS,
     PRODUCT_URL,
+    RESYNC_SECS,
+    SLOW_POLL_FACTOR,
 )
 from .membership import GroupMembership
 from .monitor import wait_for_sale
@@ -38,6 +43,13 @@ class JobConfig:
     interval: float = DEFAULT_INTERVAL_SECS
     lead: float = DEFAULT_LEAD_SECS
     headless: bool = True
+    fast_poll_window_secs: float = FAST_POLL_WINDOW_SECS
+    slow_poll_factor: float = SLOW_POLL_FACTOR
+    resync_secs: float = RESYNC_SECS
+    max_retries: int = DEFAULT_MAX_RETRIES
+    retry_delay_secs: float = DEFAULT_RETRY_DELAY_SECS
+    cvc: str = ""
+    auto_pay: bool = False
 
 
 @dataclass
@@ -103,7 +115,15 @@ def run_snapup_job(
                 reporter.phase("monitoring")
                 reporter.log("開始監控商品狀態...")
                 ready_ids = wait_for_sale(
-                    page, membership, cfg.interval, cfg.sale_ts, reporter, cancel
+                    page,
+                    membership,
+                    cfg.interval,
+                    cfg.sale_ts,
+                    reporter,
+                    cancel,
+                    fast_poll_window_secs=cfg.fast_poll_window_secs,
+                    slow_poll_factor=cfg.slow_poll_factor,
+                    resync_secs=cfg.resync_secs,
                 )
                 if not ready_ids:
                     return JobResult("sold_out")
@@ -116,7 +136,12 @@ def run_snapup_job(
                         raise JobCancelled()
 
                     success_ids, _failed, cart_results = add_with_retry(
-                        page, final_ids, reporter, cancel
+                        page,
+                        final_ids,
+                        reporter,
+                        cancel,
+                        max_retries=cfg.max_retries,
+                        retry_delay_secs=cfg.retry_delay_secs,
                     )
                     if not success_ids:
                         reporter.log("所有商品加入購物車失敗！")
@@ -124,7 +149,9 @@ def run_snapup_job(
 
                     reporter.log(f"成功加入 {len(success_ids)}/{len(final_ids)} 個商品")
                     reporter.phase("checkout")
-                    checkout_info = go_to_checkout(page, reporter)
+                    checkout_info = go_to_checkout(
+                        page, reporter, cvc=cfg.cvc, auto_pay=cfg.auto_pay
+                    )
 
                 result = JobResult(
                     "success",

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import * as api from '../api'
 import type { AuthStatus } from '../types'
 import TopBar from './TopBar'
 
@@ -50,14 +51,23 @@ describe('TopBar', () => {
     expect(screen.queryByText('連線中斷')).not.toBeInTheDocument()
   })
 
-  it('opens the login dialog when the 登入 button is clicked', async () => {
+  it('opens the settings dialog when the gear button is clicked', async () => {
+    vi.mocked(api.fetchSettings).mockResolvedValue({
+      cvc: '',
+      auto_pay: false,
+      default_interval_secs: 0.5,
+      default_lead_secs: 300,
+      fast_poll_window_secs: 15,
+      slow_poll_factor: 4,
+      resync_secs: 60,
+      max_retries: 3,
+      retry_delay_secs: 0.3,
+    })
     const user = userEvent.setup()
     render(<TopBar />)
 
-    await user.click(screen.getByRole('button', { name: '登入' }))
+    await user.click(screen.getByRole('button', { name: '設定' }))
 
-    expect(
-      screen.getByRole('heading', { name: '匯入登入憑證' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '設定' })).toBeInTheDocument()
   })
 })
