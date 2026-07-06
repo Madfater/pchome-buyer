@@ -13,9 +13,13 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
+        working-directory: backend
       - run: uv run pytest
-      - run: uv run --with pyright pyright pchome
+        working-directory: backend
+      - run: uv run --with pyright pyright src/pchome
+        working-directory: backend
       - run: uv run ruff format --check .
+        working-directory: backend
 
   frontend:
     runs-on: ubuntu-latest

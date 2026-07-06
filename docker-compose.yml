@@ -1,6 +1,8 @@
 services:
   pchome-buyer:
-    build: .
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     # 控制台本身無認證，預設只綁 host 的 127.0.0.1；
     # 要對外請改成 "8787:8787" 並以反向代理（basic auth / VPN）保護
     ports:

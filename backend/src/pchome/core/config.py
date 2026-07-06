@@ -5,7 +5,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+# 本檔位於 backend/src/pchome/core/config.py，往上 5 層才是 monorepo root（本機
+# `cd backend && uv run ...` 適用）；container 內沒有 monorepo root 的概念，Dockerfile
+# 會設 PCHOME_PROJECT_ROOT=/app 覆寫，對應 legacy *.json 的 symlink 位置
+_DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
+PROJECT_ROOT = Path(os.getenv("PCHOME_PROJECT_ROOT", str(_DEFAULT_PROJECT_ROOT)))
 LEGACY_ENV_FILE = PROJECT_ROOT / ".env"
 load_dotenv(LEGACY_ENV_FILE)
 

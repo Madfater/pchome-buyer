@@ -4,8 +4,11 @@
 checkout 列表）。啟動 job 會在背景執行緒真的呼叫 core/runner.py 的 run_snapup_job，
 可能觸發真實網路查詢甚至真的開另一個 Playwright 瀏覽器連真實 PChome——這些一律不測。
 
-不屬於 `tests/`（testpaths），`uv run pytest` 預設不會跑到，須明確指定
-`uv run pytest e2e`。需要 `frontend/dist` 已建置（`npm --prefix frontend run build`）。
+不屬於 `backend/tests/`（testpaths），`cd backend && uv run pytest` 預設不會跑到，須明確指定
+`cd backend && PYTHONPATH=. uv run pytest ../e2e`（`PYTHONPATH=.` 是必要的：pytest 對外部路徑
+`../e2e` 的 rootdir 判定跟 `backend/pyproject.toml` 的 `pythonpath = ["."]` 對不上，得手動補上
+才能解析到 `tests.support.isolated_container`）。需要 `frontend/dist` 已建置
+（`npm --prefix frontend run build`）。
 """
 
 import socket

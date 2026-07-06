@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// 開發時 API 由 `python main.py web` 提供（預設 8787），Vite 只代理 /api
+// 開發時 API 由 `cd backend && uv run pchome` 提供（預設 8787），Vite 只代理 /api
 export default defineConfig({
   plugins: [react()],
   server: {

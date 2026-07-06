@@ -60,8 +60,8 @@ export default function LoginSettingsSection() {
   return (
     <>
       <p className="hint" style={{ margin: 0 }}>
-        在本機執行 <code>python main.py login</code> 後貼上 auth_state.json
-        的內容， 或貼上瀏覽器擴充功能（Cookie-Editor 等）匯出的 cookie JSON。
+        貼上瀏覽器擴充功能（Cookie-Editor 等）匯出的 cookie JSON，或本機登入後
+        匯出的 auth_state.json 內容。
       </p>
       <label>
         憑證內容（JSON）

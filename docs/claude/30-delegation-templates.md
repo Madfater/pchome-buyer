@@ -41,7 +41,7 @@
 驗收條件：
 1. <結構性事實，例：pchome/core/ 內不再 import fastapi（用 grep 驗證）>
 2. CLAUDE.md「指令」區塊「檢查」段中對應本次改動的每一項 gate 都跑過且乾淨（逐項列出結果）。
-3. <行為不變的驗法，例：實跑 main.py 並 curl /api/state 回傳結構與重構前一致>
+3. <行為不變的驗法，例：實跑 cd backend && uv run pchome 並 curl /api/state 回傳結構與重構前一致>
 回報格式：移動/改名清單（舊路徑 → 新路徑）、驗收逐條結果與證據、你注意到但沒動的技術債（至多三條）。
 ```
 
