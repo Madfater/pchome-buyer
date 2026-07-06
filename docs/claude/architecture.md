@@ -1,7 +1,7 @@
 # Architecture 導航地圖
 
 > **本檔是導航用描述，不是契約。** 與程式碼衝突時一律以程式碼為準；引用本檔的函式名/欄位名之前先 Grep 確認存在。發現過時請順手更新本檔（規則見 [40-maintenance.md](40-maintenance.md)）。
-> **最後校準：2026-07-06**（CLI 移除：`pchome/cli.py` 的 `login`/`buy`/`web` 子指令全部拿掉，`main()` 改成無子指令直接解析 `--host`/`--port` 啟動網頁控制台；`ConsoleReporter`/`session.login_flow` 已刪除；尚未 commit）。距今超過 30 天或經歷大型 refactor 後，引用前應抽查校準。
+> **最後校準：2026-07-06**（對應 commit 21c8d96：CLI 子指令已移除，`main.py` 直接解析 `--host`/`--port` 啟動網頁控制台；`ConsoleReporter`/`session.login_flow` 已刪除。測試數當日實測：pytest 221 / Vitest 106 / e2e 9）。距今超過 30 天或經歷大型 refactor 後，引用前應抽查校準。
 > 致命不變量不在本檔——在 CLAUDE.md，那份才是不能違反的。
 
 `main.py` 是薄入口 → `pchome/cli.py`（唯一功能是啟動 uvicorn 服務網頁控制台）。分層如下。
@@ -16,7 +16,7 @@
 - **`membership.py`** — `GroupMembership`：run-group 的執行緒安全可變成員集。監控期間可加入/離開；加購前 `freeze()` 鎖定名單（之後 `add()` 回傳 `False`）。
 - **`session.py`** — auth-state 存檔/存在檢查、`check_session(page)`（載入購物車頁偵測是否被導向登入；snapup/cart modify 不需登入——登入只在結帳時強制，所以這步在監控開始前跑）、`check_session_standalone()`（短命 headless 瀏覽器，給 auth status endpoint 用）。
 - **`monitor.py`** — `wait_for_sale(..., *, fast_poll_window_secs=, slow_poll_factor=, resync_secs=)`：以 `interval` ±50% 隨機化輪詢 `prod/button` API（JSONP，所有商品一次批次呼叫）取 `ButtonType`（`ForSale` / `NotReady` / `SoldOut`）。每圈重讀 `membership.active_ids()`（動態進出）；成員空了 raise `JobCancelled`。伺服器時間開始時取一次、每 `resync_secs`（預設 60）秒重新校正；同週期對 `ecssl-cart.pchome.com.tw` 發 `no-cors` fetch 保持 TLS 連線暖機。有 sale time 時以 `interval*slow_poll_factor`（預設 4）慢輪詢，開賣前 `fast_poll_window_secs`（預設 15）秒切全速。這三個參數原本是模組常數，現在是 keyword-only 參數（預設值＝原常數），由 `runner.py` 從 `JobConfig` 傳入——面板的設定視窗可調整。
-- **`product_info.py`** — `resolve_store_codes()`：批次 prod-API 查每個商品的真實 store code（`Store` 欄位）供購物車 `RS` 參數用，含 in-memory cache。cache 在 `runner.py` 監控前暖機（晚加入者在 `job_service.start()` 暖）；查詢失敗 fallback 到 ID 前綴但不寫入 cache。`fetch_product_meta()`：另一支獨立函式，新增商品時呼叫一次，抓同一個 `prod` API 但擴大 `fields`（Name/Price/Pic/isSpec/isETicket/isPreOrder24h），純展示用途、不快取、失敗一律回傳 `None`（不可讓新增商品失敗）；不要跟 `resolve_store_codes` 共用快取或函式，語意不同。
+- **`product_info.py`** — `resolve_store_codes()`：批次 prod-API 查每個商品的真實 store code（`Store` 欄位）供購物車 `RS` 參數用，含 in-memory cache。cache 在 `runner.py` 監控前暖機（晚加入者在 `job_service.start()` 暖）；查詢失敗 fallback 到 ID 前綴但不寫入 cache。`fetch_product_meta()`：另一支獨立函式，新增商品時呼叫一次，抓同一個 `prod` API 但擴大 `fields`（Name/Price/Pic/isSpec/isETicket/isPreOrder24h/RatingValue/ReviewCount/isSnapUp，完整清單以 `config.py` 的 `PROD_META_API` 為準），純展示用途、不快取、失敗一律回傳 `None`（不可讓新增商品失敗）；不要跟 `resolve_store_codes` 共用快取或函式，語意不同。
 - **`cart.py`** — `add_with_retry(..., *, max_retries=, retry_delay_secs=)` 回傳 `(success_ids, failed_ids, results)`，`results` 是結構化 `CartItemResult`（含 cart-modify 回應的 `PRODCOUNT`/`PRODTOTAL`）。每商品：`snapup` API（fetch）取得 MAC 授權碼（約 15 秒有效），緊接 `cart modify`（JSONP）帶上該 MAC；全部商品在一次 `page.evaluate` 內完成（snapup 平行、modify 序列）。若 `PRODCOUNT` 未隨逐次加入嚴格遞增會記 warning（clobber 偵測）。失敗最多嘗試 `max_retries`（預設 3，含首次；sold-out 不重試）次，重試間隔 `retry_delay_secs`（預設 0.3 秒）——原本是模組常數 `MAX_RETRIES`/`RETRY_DELAY_SECS`，現在是 keyword-only 參數，面板設定視窗可調整。
 - **`checkout.py`** — `go_to_checkout(page, reporter, *, cvc="", auto_pay=False)` 回傳 `CheckoutInfo`：購物車 → payinfo 頁，`cvc` 非空時自動填入（多重 fallback selector），`auto_pay=True` 時自動點「確認付款」，並 best-effort 擷取訂單資訊（`_capture_payinfo`：selector 串接＋截斷 body 文字 fallback；擷取失敗絕不能中斷付款流程——payinfo 的 DOM selector 未經實地驗證，可能需要 live 調整）。`cvc`/`auto_pay` 原本是內部呼叫 `config.get_cvc()`/`is_auto_pay()`（讀 `.env`），現在是明確參數，由呼叫端（`runner.py`）從 `JobConfig` 傳入——core 模組維持不碰持久化。
 - **`runner.py`** — `JobConfig` 除了 `product_ids`/`sale_ts`/`interval`/`lead`/`headless`，還有 `fast_poll_window_secs`/`slow_poll_factor`/`resync_secs`/`max_retries`/`retry_delay_secs`/`cvc`/`auto_pay`（皆有出廠預設值）。`run_snapup_job(JobConfig, reporter, membership=, checkout_lock=, cancel=, hold=)`：lead 睡眠 → 開瀏覽器 → session 檢查 → 監控（帶入 `cfg` 的輪詢調校參數）→ freeze membership → 加購重試（帶入 `cfg` 的重試參數）→ 結帳（帶入 `cfg.cvc`/`cfg.auto_pay`）→ `hold(result)`（保持瀏覽器開啟；以 pending `JobResult` 呼叫，讓 web 層在瀏覽器還開著時就持久化結帳紀錄）。回傳 `JobResult(status, success_ids, cart_results, checkout)`。
@@ -51,12 +51,9 @@
 - `src/state.tsx` — 單一 `useReducer` context，鏡像 `/api/state` + SSE 增量；`useSse` 在（重新）連線時重抓快照以修復漏掉的事件。`src/api.ts` — fetch 包裝（mutation 回傳完整快照）。`src/types.ts` — 後端契約型別＋label map。
 - `src/components/` — `TopBar`（auth 徽章 + 齒輪圖示按鈕開 `SettingsDialog`，取代原本的獨立「登入」按鈕）、`SettingsDialog`（`wide` dialog，四個 section：登入用 `LoginSettingsSection`、付款＝CVC/AUTO_PAY、搶購時機＝interval/lead/fast_poll_window/slow_poll_factor/resync、進階＝max_retries/retry_delay；每個 section 各自 `fetchSettings()`/`updateSettings()`，各自的「儲存」按鈕只送出該 section 自己的欄位，避免跨 section 或跨分頁同時儲存時互相覆蓋）、`LoginSettingsSection`（cookie 貼上/上傳＋檢查 session，從舊的 `LoginDialog` 抽出、拿掉 `Dialog` 包裝，只在 `SettingsDialog` 裡用）、`ProductGrid`（勾選＋批次列＋`AddProductDialog` URL/ID＋datetime，貼上後 debounce 呼叫 `GET /api/products/preview` 顯示縮圖/名稱/價格預覽卡）、`ProductCard`（縮圖/名稱/價格/規格徽章 + 依狀態顯示 開始/取消/結束，group 色條以 sale_time 為 key；`name`/`image`/`price`/`is_spec` 等欄位缺省時 fallback 顯示商品編號，不佔位空白）、`CheckoutGrid`/`CheckoutDetailDialog`（購物車結果表、payinfo 擷取、log 尾巴、標記完成/清除已完成）、`LogPanel`（可按 group 過濾）。
 - Vite dev server 把 `/api` proxy 到 `127.0.0.1:8787`（`vite.config.ts`）。
-- **測試**（`npm --prefix frontend run test`，Vitest + React Testing Library，100 個測試，`vitest.config.ts` + `src/test-setup.ts`）：每個元件/模組旁邊 `*.test.ts(x)` 共存；`state.tsx` 的 `reducer`/`initialState` 為了可測性改為 `export`（原本模組私有）。API 層一律 `vi.mock('../api')`＋`vi.mock('../toast')`＋`vi.mock('../state')`（只 mock 用到的 hook）隔離，不接真實 fetch／不啟真實 SSE。
-  - 教訓：jsdom 沒實作 `<dialog>` 的 `showModal()`/`close()`（只有 `open` 屬性），`test-setup.ts` 補了最小 polyfill（`showModal` 設 `open` 屬性、`close` 移除屬性並 dispatch `close` 事件）；沒有這段 polyfill 任何用到 `components/Dialog.tsx` 的元件測試都會噴 `showModal is not a function`。
-  - 教訓：沒開 `vitest.config.ts` 的 `test.globals: true`（刻意用明確 `import` 避免污染 ambient 型別），導致 `@testing-library/react` 靠偵測 global `afterEach` 才會註冊的自動 cleanup 不會生效——每個 render 出的 DOM 會累積到下一個 `it()`，出現「same text 找到兩個節點」的假錯誤。`test-setup.ts` 手動 `afterEach(() => cleanup())` 補上。
-  - 教訓：`userEvent.type()` 把 `{`/`[` 當成特殊按鍵語法解析（例：輸入 `{"cookies": []}` 會噴 `Expected repeat modifier...`），貼 JSON payload 一律改用 `fireEvent.change(el, { target: { value } })`，不要用 `user.type()`。
+- **測試**（`npm --prefix frontend run test`，Vitest + React Testing Library，`vitest.config.ts` + `src/test-setup.ts`）：每個元件/模組旁邊 `*.test.ts(x)` 共存；`state.tsx` 的 `reducer`/`initialState` 為了可測性改為 `export`（原本模組私有）。API 層一律 `vi.mock('../api')`＋`vi.mock('../toast')`＋`vi.mock('../state')`（只 mock 用到的 hook）隔離，不接真實 fetch／不啟真實 SSE。三個已知測試坑（jsdom 的 `<dialog>` polyfill、手動 cleanup、`userEvent.type` 吃 JSON 會爆）見下方教訓紀錄 2026-07-05 的三條，寫新前端測試前先掃一眼。
 
-## `tests/` — 純邏輯測試（`uv run pytest`，205 個測試）
+## `tests/` — 純邏輯測試（`uv run pytest`；測試數見檔頭校準行）
 
 - 不碰真實瀏覽器/網路/檔案系統：`test_timing.py`、`test_product_id.py`、`test_membership.py`、`test_cancel.py`、`test_event_bus.py`、`test_cli_helpers.py`。
 - 檔案系統類用 `tmp_path` 隔離：`test_product_store.py`、`test_checkout_store.py`；`test_auth_service.py`、`test_session.py` 額外用 `monkeypatch` 換掉 `AUTH_STATE_FILE`，絕不寫真實 `auth_state.json`。
@@ -72,7 +69,7 @@
 - `tests/support/isolated_container.py` — `build_isolated_container(tmp_path, monkeypatch)`：把「組一個完全隔離的 `Container`（換掉兩份 `AUTH_STATE_FILE`、store 全指到 `tmp_path`）」這段邏輯抽出來，`tests/conftest.py` 的 `container` fixture 與 `e2e/conftest.py` 的 `container` fixture 都呼叫它，避免兩處重複維護同一段隔離邏輯。
 - 尚未覆蓋且不打算補：`GET /api/events` 串流本身（見上）。
 
-## `e2e/` — 真實瀏覽器測試（`uv run pytest e2e`，9 個測試，不在 `uv run pytest` 預設範圍）
+## `e2e/` — 真實瀏覽器測試（`uv run pytest e2e`，不在 `uv run pytest` 預設範圍）
 
 - 不屬於 `pyproject.toml` 的 `testpaths = ["tests"]`，所以預設 `uv run pytest` 不會跑到；要跑必須明確 `uv run pytest e2e`，且需要先 `npm --prefix frontend run build`（`frontend/dist` 不存在會 `pytest.skip`）。
 - **範圍刻意限縮，只測不會啟動 job 的 UI 流程**：新增/編輯/刪除商品（單筆＋批次）、登入憑證匯入（含失敗訊息）、checkout 列表顯示/標記完成/清除已完成。**完全不點「開始」/「啟動選取」**——那會在背景執行緒真的呼叫 `core/runner.py` 的 `run_snapup_job`，可能觸發真實網路查詢甚至真的開另一個 Playwright 瀏覽器連真實 PChome（CLAUDE.md 不變量 #7 的紅線）。同理也不點「檢查 session」（live 登入檢查）——只有在已匯入 auth_state 且 30 秒 debounce 過期時才會真的開 headless 瀏覽器連真實網域，e2e 完全不觸碰這顆按鈕。這是使用者在 2026-07-05 明確做的取捨（見 `e2e/conftest.py` 檔頭註解）。
@@ -80,9 +77,12 @@
 - `page`/`browser` fixture：直接用 `playwright.sync_api.sync_playwright()`（專案主依賴，非新增），headless chromium，每個測試獨立 `new_context()`。
 - 教訓：Playwright 的 `get_by_role`/`get_by_text` 預設是子字串比對，`"新增"` 會連 `"＋ 新增任務"` 一起命中（strict mode violation）；同一段文字常在畫面上出現兩次（group 標題 + 卡片內文，例如 `"立即監控"`）。前者用 `exact=True` 排除，後者用 `.first` 或改抓更精確的容器。
 
-## 教訓紀錄
+## 部署（Docker / CI）
 
-（踩坑後依 [40-maintenance.md](40-maintenance.md) 格式追加於此）
+- **`Dockerfile` + `docker-compose.yml`** — 兩個 service：`pchome-buyer`（面板，host 側只綁 `127.0.0.1:8787`；`TZ=Asia/Taipei`——開賣時間以此時區解析；`shm_size: 1gb` 給 Chromium；`./data` volume 放 `auth_state.json`/`products.json`/`checkouts.json`）與 `mongo`（mongo:7，刻意不對外 publish port，只在 compose 內網可連）。CVC/AUTO_PAY 不走環境變數，存 Mongo。
+- **`.github/workflows/ci-cd.yml`** — push master 觸發：`backend` job（`uv run pytest`＋pyright＋`ruff format --check`）、`frontend` job（lint＋`prettier --check`＋build＋test）平行跑，兩者全綠後 `deploy` job 以 HMAC 簽章打 Dockhand webhook（repo secrets `DOCKHAND_WEBHOOK_URL`/`DOCKHAND_WEBHOOK_SECRET`）重新部署遠端實例。**push master ＝ 部署**，後果見 [50-letter.md](50-letter.md) 第 1 件事。
+
+## 教訓紀錄
 
 - 2026-07-05 | 症狀: 幫 FastAPI routers 補測試時，`GET /api/auth/status` 明明用 `monkeypatch` 換了 `AUTH_STATE_FILE` 卻仍回報專案根目錄真實 `auth_state.json` 存在 | 根因: `AUTH_STATE_FILE` 在 `services/auth_service.py` 與 `core/session.py` 是各自獨立 `from .config import AUTH_STATE_FILE` 出來的模組級名稱，`has_auth_state()`/`check_session_standalone()` 走 `session.py` 那份，只 patch `auth_service` 那份不會生效 | 規則: 任何要隔離 `AUTH_STATE_FILE` 的測試，兩個模組的綁定都要 monkeypatch（見 `tests/conftest.py` 的 `container` fixture）。
 - 2026-07-05 | 症狀: 想用 `TestClient.stream()` 測 `GET /api/events`（SSE），實跑後 `uv run pytest` 整個掛住超過 2 分鐘、`timeout` 包裝也攔不住 | 根因: `events.py` 的 SSE generator 是同步函式卡在 `queue.get(timeout=15)`，交給 starlette 丟到 threadpool 執行；`TestClient` 提前結束 `with client.stream()` 區塊時無法可靠取消該背景執行緒 | 規則: 不要用 `TestClient` 測真正的串流 endpoint，只測回傳快照的 `GET /api/state`；SSE 串流本身留給實跑（開瀏覽器連 `/api/events` 觀察）驗證。

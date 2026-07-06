@@ -20,9 +20,9 @@
 
 **輕量豁免**（驗收唯一的例外，兩條同時成立才適用）：改動無執行面（純文件/註解/log 字串），且主對話三個工具呼叫內可自證（例如 grep 確認改到位）。此時可自驗，但回報必須註明「輕量豁免，自驗」。任何碰到程式行為的改動不適用。
 
-## 環境事實（2026-07-04 驗證，來源：code.claude.com/docs/en/sub-agents.md）
+## 環境事實（2026-07-04 驗證、2026-07-06 複驗，來源：code.claude.com/docs/en/sub-agents.md）
 
-- `Agent` 工具內建 subagent_type：`general-purpose`（全工具）、`Explore`（唯讀搜尋）、`Plan`（規劃）、`claude`（同 general-purpose 的 catch-all）、`claude-code-guide`（查 Claude Code/API 文件）。另有本專案自訂的 `verifier`、`deep-reviewer`（見 §附錄）。
+- `Agent` 工具內建 subagent_type：`general-purpose`（全工具）、`Explore`（唯讀搜尋）、`Plan`（規劃）、`claude`（同 general-purpose 的 catch-all）、`claude-code-guide`（查 Claude Code/API 文件）。另有本專案自訂的 `verifier`、`deep-reviewer`（見 §附錄），可直接派。
 - `Agent` 呼叫可帶 `model` 參數逐次覆寫：`haiku` / `sonnet` / `opus`（`fable` 只在特殊 session 存在，列表沒有就當不存在）。
 - **effort 不能逐次指定**，只能寫在 agent 定義檔 frontmatter（`effort: low|medium|high|xhigh|max`）。所以需要高 effort 的工作請用 `verifier` / `deep-reviewer` 這類定義檔 agent，而不是對 general-purpose 幻想 effort 參數。
 - agent 定義檔在 `.claude/agents/*.md`（被 gitignore，換機器要重建：`cp docs/claude/agents/*.md .claude/agents/`）。
@@ -77,5 +77,4 @@ cp docs/claude/agents/*.md .claude/agents/
 
 ## 教訓紀錄
 
-- 2026-07-04 | 症狀: 剛 cp 進 `.claude/agents/` 的 agent 立刻派工報「Agent type not found」 | 根因: agent 清單在 session 啟動時載入，session 中新增不生效 | 規則: 當前 session 要用剛裝的 agent 時，改派 `general-purpose` 並在 prompt 開頭貼上該定義檔的規則內文、`model` 參數照定義檔設（effort 無法補，接受差異）。
-- 2026-07-04 | 症狀: 上一條教訓記錄「當前 session 派不動新裝 agent」，不確定下個 session 是否真的解決 | 根因: 新 session 啟動時重新載入 agent 清單，`verifier`/`deep-reviewer` 這次直接出現在可用清單裡，兩者都成功派工完成任務 | 規則: 新 session（非剛裝當下）可直接派 `verifier`/`deep-reviewer`，不必再繞 `general-purpose`。`effort: high` 疑似有生效——deep-reviewer 對一條致命不變量做對抗審查，主動戳出「查詢失敗會退回被禁止的前綴拆解」這個程式碼與文件措辭不一致之處，深度超出向 sonnet 直接提問的預期；但無法用同一問題對比 sonnet 基準來確認因果，僅為觀察不是嚴格驗證。
+- 2026-07-04 | 症狀: 剛 cp 進 `.claude/agents/` 的 agent 立刻派工報「Agent type not found」 | 根因: agent 清單在 session 啟動時載入，session 中新增不生效（下個 session 起即正常，已多次驗證） | 規則: 當前 session 要用剛裝的 agent 時，改派 `general-purpose` 並在 prompt 開頭貼上該定義檔的規則內文、`model` 參數照定義檔設（effort 無法補，接受差異）。

@@ -26,7 +26,7 @@
 驗收條件（完成的定義）：
 1. <可判定條件，例：POST /api/jobs/pause 對 monitoring 中的 job 回 200 且 state 變 paused>
 2. <...>
-3. `uv run --with pyright pyright pchome` 乾淨（改前端則是 lint + build 乾淨）。
+3. CLAUDE.md「指令」區塊「檢查」段中對應本次改動的每一項 gate 都跑過且乾淨（照該段註解判斷哪些必跑，逐項列出結果）。
 回報格式：改了哪些檔案（檔案:行號區間）、每項驗收條件的實測結果與證據、遺留問題。
 不要貼大段程式碼。任何驗收條件沒過就如實回報失敗輸出，不要宣稱完成。
 ```
@@ -40,7 +40,7 @@
 必守：CLAUDE.md 致命不變量；不順手做無關清理；不改公開介面除非任務明說。
 驗收條件：
 1. <結構性事實，例：pchome/core/ 內不再 import fastapi（用 grep 驗證）>
-2. `uv run --with pyright pyright pchome` 乾淨（改前端則 lint + build 乾淨）。
+2. CLAUDE.md「指令」區塊「檢查」段中對應本次改動的每一項 gate 都跑過且乾淨（逐項列出結果）。
 3. <行為不變的驗法，例：實跑 main.py 並 curl /api/state 回傳結構與重構前一致>
 回報格式：移動/改名清單（舊路徑 → 新路徑）、驗收逐條結果與證據、你注意到但沒動的技術債（至多三條）。
 ```

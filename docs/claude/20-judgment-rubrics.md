@@ -16,7 +16,7 @@
 ## R2 何時算真的完成
 
 全部成立才能回報完成，缺一條就明說缺哪條：
-1. 對應的自動 gate 跑過且乾淨：改 Python → `uv run --with pyright pyright pchome`；改前端 → `npm --prefix frontend run lint` ＋ `npm --prefix frontend run build`。
+1. 對應的自動 gate 跑過且乾淨。**gate 清單的唯一正本是 CLAUDE.md「指令」區塊的「檢查」段**——照那份的註解判斷本次改動要跑哪幾項，不要憑記憶列舉（本檔刻意不重複清單，避免兩處漂移——踩坑紀錄見 00-diagnosis.md 教訓）。
 2. **行為被實際執行過**：實跑受影響流程、或跑到測試、或派 `verifier` 實測。型別檢查過≠行為對。（本專案紅線：驗證不可觸及真實結帳，見 CLAUDE.md 不變量 7。）
 3. 驗收由 fresh-context `verifier` 做過，逐條 PASS（無執行面的微小改動可走「輕量豁免」自驗，條件見 [10-model-dispatch.md](10-model-dispatch.md)）。
 4. 沒有殘留的 TODO/暫時 hack/debug print；diff 裡沒有與任務無關的改動。

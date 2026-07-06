@@ -1,16 +1,16 @@
 # 給未來 session 的信
 
-> 2026-07-04，Fable 5 在建立這套制度的 session 末尾寫下。讀者是之後接手的每一個模型。
+> 2026-07-04 由 Fable 5 建立制度時寫下，2026-07-06 檢查更新。讀者是之後接手的每一個模型。
 
 ## 三件使用者沒問、但你該知道的事
 
-### 1.（已完成，2026-07-04）這個專案最大的槓桿曾是「補一套純邏輯測試」，而且很便宜
+### 1. push 到 master ＝ 部署到遠端，不是備份動作
 
-已於 2026-07-04 另一 session 完成：`uv add --dev pytest`，`tests/` 覆蓋 `core/timing.py`（`parse_sale_time` 各種格式與錯誤輸入）、`services/product_id.py`（URL/裸 ID 解析）、`core/membership.py`（join/leave/freeze 語意）、`services/auth_service.py`（cookie 格式轉換 + `AUTH_STATE_FILE` 用 monkeypatch 隔離、絕不寫真實檔案）。45 個測試，`uv run pytest` 綠燈，`pyright` 也過。以後改這四個模組先跑 `uv run pytest`，比派 agent 實跑便宜很多——R2 的驗證成本因此下降。細節見 [architecture.md](architecture.md) 的 `tests/` 段。
+`.github/workflows/ci-cd.yml`：push master → CI 跑全套檢查（backend：pytest＋pyright＋`ruff format --check`；frontend：lint＋`prettier --check`＋build＋test）→ 全綠後打 Dockhand webhook 自動重新部署遠端實例。這有兩個後果：（a）遠端實例可能帶著真登入 session 與 `AUTO_PAY=true` 在跑，push 是對外動作，凡 push 前先確認使用者要的是部署；（b）CI 的 format 檢查是 `--check` 模式——本地沒跑 `ruff format` / `npm run format` 就 push，CI 會紅。部署細節見 [architecture.md](architecture.md) §部署。
 
-### 2. 這個工具花真錢，而且錢的入口比你以為的多
+### 2. 這個工具花真錢，而且錢與憑證的入口比你以為的多
 
-`AUTO_PAY=true` ＋ 真 CVC 在 `.env` ＋ 真登入 session 在 `auth_state.json`。這代表：跑 `main.py` 起服務本身安全，但只要有 job 走到 checkout 就可能真的付款。實跑驗證的安全邊界是：**可以**啟動服務、加商品、看狀態機、甚至用不存在的商品 ID 觀察失敗路徑；**絕不可以**讓真實可買商品的 job 跑進 carting/checkout phase。測試用的商品 ID 不存在時 API 會走失敗分支，這是安全的驗證路徑。另外 `auth_state.json`（repo 根目錄，27KB）是活的登入憑證：不要 Read 進對話、不要出現在 diff、log、或任何外傳內容裡。
+入口清單：MongoDB `settings` collection 裡的真 CVC＋`AUTO_PAY`（面板設定視窗管理）、本機舊 `.env` 可能殘留的 legacy CVC、`auth_state.json`（repo 根目錄，活的登入 session）、`GET /api/settings`（回傳 `cvc` 欄位——手動 curl 驗證先 redact 再看，別直接印原始 JSON）。測試或腳本要建 `SettingsStore` 一律走 `tests/support/isolated_container.py`，否則它的 `.env` migration 會讀到真實 CVC。實跑驗證的安全邊界：**可以**啟動服務、加商品、看狀態機、用不存在的商品 ID 觀察失敗路徑；**絕不可以**讓真實可買商品的 job 跑進 carting/checkout phase。`auth_state.json` 不要 Read 進對話、不要出現在 diff、log、或任何外傳內容裡。
 
 ### 3. 失敗時先懷疑「PChome 契約漂移」，再懷疑 regression
 
@@ -25,13 +25,11 @@
 
 ## 環境備忘
 
-- `~/.claude/settings.json` 目前是 `"model": "claude-fable-5[1m]"`——那是建立制度的特殊 session 用的。之後的日常 model 由使用者自己設；不要因為看到這行就以為自己是 Fable。
+- `~/.claude/settings.json` 的 `model` 欄位由使用者自己管理，隨時會換。不要假設自己是哪個模型——照制度做事，制度不依賴主模型等級。
 - 派工時 `model` 參數可用：`haiku` / `sonnet` / `opus`（清單裡沒有 `fable` 就當它不存在）。effort 只能設在 agent 定義檔 frontmatter。
 - auto-memory（`~/.claude/projects/-home-madfater-pchome-buyer/memory/`）已有 [fedora-wsl-environment.md]：Fedora WSL2、`playwright install-deps` 會失敗要用 `dnf`、uv 在 `~/.local/bin`。使用者偏好類的新發現寫去那裡，專案制度類的寫回 docs/claude/。
 - `.claude/` 整個被 gitignore：`verifier`、`deep-reviewer` 兩個 agent 定義的正本在 `docs/claude/agents/`，換機器後 `cp docs/claude/agents/*.md .claude/agents/` 重建。
 
 ## 未完成交接
 
-- 2026-07-06 | **Mongo 化其他 store**：這次只把 settings 搬進 MongoDB（`pchome/services/settings_store.py` + `mongo.py`）；`ProductStore`/`CheckoutRecordStore`/`AuthService` 目前仍是 `products.json`/`checkouts.json`/`auth_state.json` 檔案。使用者提到之後有計畫也遷過去——`pchome/services/mongo.py` 的 `get_db()` 共用 client 存取點就是為了讓那次遷移直接重用，不用重新設計連線層。
-
-（2026-07-04 制度建立 session：A–G 與收尾全部完成，經 opus 對抗審查修正 5 處。若你因中斷接手，先跑收尾三步：對抗審查、read-back、給使用者總結。）
+- 2026-07-06 | **Mongo 化其他 store**：settings 已進 MongoDB（`pchome/services/settings_store.py` + `mongo.py`）；`ProductStore`/`CheckoutRecordStore`/`AuthService` 仍是 `products.json`/`checkouts.json`/`auth_state.json` 檔案。使用者有計畫之後遷過去——`mongo.py` 的 `get_db()` 共用 client 存取點就是為了讓那次遷移直接重用，不用重新設計連線層。
