@@ -1,9 +1,9 @@
 """登入狀態管理：匯入 cookie / storage_state、檢查 session 有效性
 
 遠端部署時無法在伺服器上開有頭瀏覽器登入，改為在本機登入後把
-Playwright storage_state（`python main.py login` 產生的 auth_state.json）
-或瀏覽器擴充功能（Cookie-Editor / EditThisCookie）匯出的 cookie 陣列
-貼到控制台匯入。
+Playwright storage_state（瀏覽器 devtools 匯出）或瀏覽器擴充功能
+（Cookie-Editor / EditThisCookie）匯出的 cookie 陣列貼到控制台匯入，
+存進 AuthStateRepository（MongoDB）。
 """
 
 import json
@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 
 from ..core import session
-from ..core.config import AUTH_STATE_FILE
+from ..repositories.auth_state_repository import AuthStateRepository
 
 # 擴充功能匯出的 sameSite 值 → Playwright 接受的值
 _SAMESITE_MAP = {
@@ -48,7 +48,8 @@ class ImportResult:
 
 
 class AuthService:
-    def __init__(self):
+    def __init__(self, store: AuthStateRepository | None = None):
+        self._store = store if store is not None else AuthStateRepository()
         self._lock = threading.Lock()
         self._last_check_ts: float = 0.0
         self._last_check_result: bool | None = None
@@ -56,7 +57,7 @@ class AuthService:
     # ---- 匯入 ----
 
     def import_auth(self, payload: str) -> ImportResult:
-        """匯入登入憑證，自動辨識格式並寫入 auth_state.json"""
+        """匯入登入憑證，自動辨識格式並存入 AuthStateRepository"""
         try:
             data = json.loads(payload)
         except json.JSONDecodeError as e:
@@ -91,7 +92,7 @@ class AuthService:
             else "警告：找不到任何 pchome.com.tw 的 cookie，登入可能無效"
         )
 
-        AUTH_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+        self._store.save(state)
         with self._lock:
             self._last_check_ts = 0.0  # 新憑證，快取失效
             self._last_check_result = None
@@ -108,17 +109,18 @@ class AuthService:
 
     def status(self, live: bool = False) -> dict:
         """登入狀態；live=True 時開 headless 瀏覽器實測（30 秒 debounce）"""
-        if live and session.has_auth_state():
+        state = self._store.get()
+        if live and state is not None:
             with self._lock:
                 stale = time.time() - self._last_check_ts > _LIVE_CHECK_DEBOUNCE_SECS
             if stale:
-                valid = session.check_session_standalone()
+                valid = session.check_session_standalone(state)
                 with self._lock:
                     self._last_check_ts = time.time()
                     self._last_check_result = valid
         with self._lock:
             return {
-                "has_auth_state": session.has_auth_state(),
+                "has_auth_state": state is not None,
                 "session_valid": self._last_check_result,
                 "checked_at": self._last_check_ts or None,
             }

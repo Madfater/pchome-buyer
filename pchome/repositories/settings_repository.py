@@ -19,7 +19,7 @@ from ..core.config import (
     RESYNC_SECS,
     SLOW_POLL_FACTOR,
 )
-from .mongo import get_db
+from ..infra.mongo import get_db
 
 _ID = "singleton"
 
@@ -47,7 +47,7 @@ _BOUNDS = {
 }
 
 
-class SettingsStore:
+class SettingsRepository:
     def __init__(self, db: Database | None = None):
         self._col = (db if db is not None else get_db())["settings"]
         result = self._col.update_one(

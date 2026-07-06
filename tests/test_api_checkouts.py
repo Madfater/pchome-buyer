@@ -8,7 +8,7 @@ def _seed_record(container, **overrides):
         log_tail=[],
     )
     kwargs.update(overrides)
-    return container.checkout_store.add(**kwargs)
+    return container.checkout_repository.add(**kwargs)
 
 
 def test_complete_checkout_marks_completed(client, container):
@@ -40,7 +40,7 @@ def test_complete_unknown_record_returns_404(client):
 def test_clear_completed_removes_only_completed(client, container):
     r1 = _seed_record(container, gid="g1")
     _seed_record(container, gid="g2")
-    container.checkout_store.update(r1["id"], completed=True)
+    container.checkout_repository.update(r1["id"], completed=True)
 
     resp = client.delete("/api/checkouts/completed")
 

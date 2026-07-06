@@ -50,7 +50,7 @@ def test_invalid_ref_disables_submit_with_an_error_hint(live_server, page):
 
 def test_edit_sale_time_moves_card_into_new_group(live_server, page):
     base_url, container = live_server
-    container.store.add("DGCQ39-A900JESMM", "")
+    container.product_repository.add("DGCQ39-A900JESMM", "")
     page.goto(base_url)
 
     expect(page.get_by_text("立即監控").first).to_be_visible()
@@ -63,7 +63,7 @@ def test_edit_sale_time_moves_card_into_new_group(live_server, page):
 
 def test_remove_product_requires_confirmation(live_server, page):
     base_url, container = live_server
-    container.store.add("DGCQ39-A900JESMM", "")
+    container.product_repository.add("DGCQ39-A900JESMM", "")
     page.goto(base_url)
 
     expect(page.get_by_text("DGCQ39-A900JESMM")).to_be_visible()
@@ -83,8 +83,8 @@ def test_remove_product_requires_confirmation(live_server, page):
 
 def test_bulk_select_and_bulk_delete(live_server, page):
     base_url, container = live_server
-    container.store.add("A-1", "")
-    container.store.add("A-2", "")
+    container.product_repository.add("A-1", "")
+    container.product_repository.add("A-2", "")
     page.goto(base_url)
 
     page.get_by_role("checkbox", name="選取整組").click()
@@ -149,7 +149,7 @@ def test_checkout_record_seeded_directly_is_listed_and_can_be_marked_complete(
     live_server, page
 ):
     base_url, container = live_server
-    container.checkout_store.add(
+    container.checkout_repository.add(
         gid="2026-03-06_1200#1",
         sale_time="2026-03-06 12:00",
         status="awaiting_payment",

@@ -28,7 +28,7 @@ def add_product(p: ProductIn, c: Container = Depends(get_container)):
             parse_sale_time(sale_time)
         except ValueError as e:
             raise HTTPException(400, str(e))
-    c.store.add(pid, sale_time, fetch_product_meta(pid))
+    c.product_repository.add(pid, sale_time, fetch_product_meta(pid))
     return c.state()
 
 

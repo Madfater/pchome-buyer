@@ -4,23 +4,23 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
-from ..core.config import CHECKOUTS_FILE, PRODUCTS_FILE
+from ..infra.event_bus import EventBus
+from ..repositories.auth_state_repository import AuthStateRepository
+from ..repositories.checkout_repository import CheckoutRecordRepository
+from ..repositories.product_repository import ProductRepository
+from ..repositories.settings_repository import SettingsRepository
 from ..services.auth_service import AuthService
-from ..services.checkout_store import CheckoutRecordStore
-from ..services.event_bus import EventBus
 from ..services.job_service import JobService
-from ..services.product_store import ProductStore
-from ..services.settings_store import SettingsStore
 
 
 @dataclass
 class Container:
-    store: ProductStore
-    checkout_store: CheckoutRecordStore
+    product_repository: ProductRepository
+    checkout_repository: CheckoutRecordRepository
     bus: EventBus
     jobs: JobService
     auth: AuthService
-    settings: SettingsStore
+    settings_repository: SettingsRepository
 
     def state(self) -> dict:
         """完整狀態快照：所有變更狀態的路由都回傳這個形狀"""
@@ -29,18 +29,27 @@ class Container:
             "auth": self.auth.status(),
             "products": snapshot["products"],
             "groups": snapshot["groups"],
-            "checkouts": self.checkout_store.list(),
+            "checkouts": self.checkout_repository.list(),
         }
 
 
 def build_container() -> Container:
-    store = ProductStore(PRODUCTS_FILE)
-    checkout_store = CheckoutRecordStore(CHECKOUTS_FILE)
+    product_repository = ProductRepository()
+    checkout_repository = CheckoutRecordRepository()
     bus = EventBus()
-    settings = SettingsStore()
-    jobs = JobService(store, checkout_store, bus, settings)
-    auth = AuthService()
-    return Container(store, checkout_store, bus, jobs, auth, settings)
+    settings_repository = SettingsRepository()
+    auth_state_repository = AuthStateRepository()
+    jobs = JobService(
+        product_repository,
+        checkout_repository,
+        bus,
+        settings_repository,
+        auth_state_repository,
+    )
+    auth = AuthService(auth_state_repository)
+    return Container(
+        product_repository, checkout_repository, bus, jobs, auth, settings_repository
+    )
 
 
 def get_container(request: Request) -> Container:

@@ -4,13 +4,14 @@ import mongomock
 import pytest
 
 from pchome.core.runner import JobResult
+from pchome.repositories import settings_repository as settings_repository_module
+from pchome.repositories.auth_state_repository import AuthStateRepository
+from pchome.repositories.checkout_repository import CheckoutRecordRepository
+from pchome.repositories.product_repository import ProductRepository
+from pchome.repositories.settings_repository import SettingsRepository
+from pchome.infra.event_bus import EventBus
 from pchome.services import job_service as job_service_module
-from pchome.services import settings_store as settings_store_module
-from pchome.services.checkout_store import CheckoutRecordStore
-from pchome.services.event_bus import EventBus
 from pchome.services.job_service import JobService
-from pchome.services.product_store import ProductStore
-from pchome.services.settings_store import SettingsStore
 
 
 @pytest.fixture(autouse=True)
@@ -21,15 +22,23 @@ def no_network_store_resolve(monkeypatch):
 
 @pytest.fixture
 def svc(tmp_path, monkeypatch):
-    # 絕不能讓 SettingsStore 的一次性 migration 讀到專案根目錄真實的 .env
+    # 絕不能讓 SettingsRepository 的一次性 migration 讀到專案根目錄真實的 .env
     monkeypatch.setattr(
-        settings_store_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
+        settings_repository_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
     )
-    store = ProductStore(tmp_path / "products.json")
-    checkout_store = CheckoutRecordStore(tmp_path / "checkouts.json")
+    db = mongomock.MongoClient()["test"]
+    product_repository = ProductRepository(db=db)
+    checkout_repository = CheckoutRecordRepository(db=db)
     bus = EventBus()
-    settings = SettingsStore(db=mongomock.MongoClient()["test"])
-    return JobService(store, checkout_store, bus, settings)
+    settings_repository = SettingsRepository(db=db)
+    auth_state_repository = AuthStateRepository(db=db)
+    return JobService(
+        product_repository,
+        checkout_repository,
+        bus,
+        settings_repository,
+        auth_state_repository,
+    )
 
 
 def install_fake_run(monkeypatch, phase="monitoring"):
@@ -62,7 +71,7 @@ def _finish(svc_, gid, ready):
 class TestStart:
     def test_creates_group_and_reaches_monitoring(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch)
-        svc.store.add("A", "")
+        svc.product_repository.add("A", "")
         result = svc.start(["A"])
 
         assert result["skipped"] == []
@@ -86,7 +95,7 @@ class TestStart:
 
     def test_skips_pid_already_active(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch)
-        svc.store.add("A", "")
+        svc.product_repository.add("A", "")
         first = svc.start(["A"])
         ready.wait(timeout=2)
         gid = first["started"][0]
@@ -99,8 +108,8 @@ class TestStart:
 
     def test_joins_existing_group_when_phase_joinable(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch, phase="monitoring")
-        svc.store.add("A", "2026-01-01 00:00")
-        svc.store.add("B", "2026-01-01 00:00")
+        svc.product_repository.add("A", "2026-01-01 00:00")
+        svc.product_repository.add("B", "2026-01-01 00:00")
         first = svc.start(["A"])
         ready.wait(timeout=2)
         gid = first["started"][0]
@@ -114,8 +123,8 @@ class TestStart:
 
     def test_does_not_join_when_group_not_in_joinable_phase(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch, phase="carting")
-        svc.store.add("A", "2026-01-01 00:00")
-        svc.store.add("B", "2026-01-01 00:00")
+        svc.product_repository.add("A", "2026-01-01 00:00")
+        svc.product_repository.add("B", "2026-01-01 00:00")
         first = svc.start(["A"])
         ready.wait(timeout=2)
         gid_a = first["started"][0]
@@ -139,7 +148,7 @@ class TestStart:
 class TestCancel:
     def test_removes_member_and_ends_group_when_empty(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch)
-        svc.store.add("A", "")
+        svc.product_repository.add("A", "")
         result = svc.start(["A"])
         ready.wait(timeout=2)
         gid = result["started"][0]
@@ -154,7 +163,7 @@ class TestCancel:
 
     def test_holding_group_only_sets_cancel_event(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch, phase="holding")
-        svc.store.add("A", "")
+        svc.product_repository.add("A", "")
         result = svc.start(["A"])
         ready.wait(timeout=2)
         gid = result["started"][0]
@@ -177,14 +186,14 @@ class TestCancel:
 class TestRemoveProduct:
     def test_cancels_and_removes_from_store_and_jobs(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch)
-        svc.store.add("A", "")
+        svc.product_repository.add("A", "")
         result = svc.start(["A"])
         ready.wait(timeout=2)
         gid = result["started"][0]
 
         svc.remove_product("A")
 
-        assert svc.store.list() == []
+        assert svc.product_repository.list() == []
         assert "A" not in svc._jobs
         group = svc._groups.get(gid)
         if group and group.thread:
@@ -194,7 +203,7 @@ class TestRemoveProduct:
 class TestUpdateSaleTime:
     def test_raises_when_job_active(self, svc, monkeypatch):
         ready = install_fake_run(monkeypatch)
-        svc.store.add("A", "2026-01-01 00:10")
+        svc.product_repository.add("A", "2026-01-01 00:10")
         result = svc.start(["A"])
         ready.wait(timeout=2)
         gid = result["started"][0]
@@ -206,9 +215,9 @@ class TestUpdateSaleTime:
 
     def test_updates_when_not_active(self, svc, monkeypatch):
         install_fake_run(monkeypatch)
-        svc.store.add("A", "2026-01-01 00:10")
+        svc.product_repository.add("A", "2026-01-01 00:10")
         svc.update_sale_time("A", "2026-01-01 00:12")
-        assert svc.store.list() == [
+        assert svc.product_repository.list() == [
             {"id": "A", "sale_time": "2026-01-01 00:12", "meta": {}}
         ]
 

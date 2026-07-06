@@ -20,10 +20,11 @@ from ..core.product_info import resolve_store_codes
 from ..core.reporter import Reporter
 from ..core.runner import JobConfig, JobResult, run_snapup_job
 from ..core.timing import parse_sale_time
-from .checkout_store import CheckoutRecordStore
-from .event_bus import EventBus
-from .product_store import ProductStore
-from .settings_store import SettingsStore
+from ..infra.event_bus import EventBus
+from ..repositories.auth_state_repository import AuthStateRepository
+from ..repositories.checkout_repository import CheckoutRecordRepository
+from ..repositories.product_repository import ProductRepository
+from ..repositories.settings_repository import SettingsRepository
 
 # 這些 phase 期間新 job 可併入既有 run-group
 _JOINABLE_PHASES = {"pending", "lead_wait", "checking_session", "monitoring"}
@@ -45,7 +46,7 @@ _KEEP: Any = object()
 
 @dataclass
 class JobState:
-    """單一商品卡的執行期狀態（商品本體存在 ProductStore）"""
+    """單一商品卡的執行期狀態（商品本體存在 ProductRepository）"""
 
     state: str = "idle"
     info: str = ""
@@ -99,15 +100,17 @@ class GroupReporter(Reporter):
 class JobService:
     def __init__(
         self,
-        store: ProductStore,
-        checkout_store: CheckoutRecordStore,
+        product_repository: ProductRepository,
+        checkout_repository: CheckoutRecordRepository,
         bus: EventBus,
-        settings: SettingsStore,
+        settings_repository: SettingsRepository,
+        auth_state_repository: AuthStateRepository,
     ):
-        self.store = store
-        self.checkout_store = checkout_store
+        self.product_repository = product_repository
+        self.checkout_repository = checkout_repository
         self.bus = bus
-        self.settings = settings
+        self.settings_repository = settings_repository
+        self.auth_state_repository = auth_state_repository
         self.checkout_lock = threading.Lock()
         self._lock = threading.Lock()
         self._groups: dict[str, RunGroup] = {}
@@ -121,7 +124,9 @@ class JobService:
 
         回傳 {"started": [gid...], "joined": {pid: gid}, "skipped": [pid...]}
         """
-        sale_times = {i["id"]: i.get("sale_time", "") for i in self.store.list()}
+        sale_times = {
+            i["id"]: i.get("sale_time", "") for i in self.product_repository.list()
+        }
         buckets: dict[str, list[str]] = {}
         skipped: list[str] = []
         for pid in dict.fromkeys(pids):
@@ -219,7 +224,7 @@ class JobService:
             self._finish_group(group, "failed")
             return
 
-        s = self.settings.get()
+        s = self.settings_repository.get()
         cfg = JobConfig(
             product_ids=group.membership.active_ids(),
             sale_ts=sale_ts,
@@ -233,6 +238,7 @@ class JobService:
             retry_delay_secs=s["retry_delay_secs"],
             cvc=s["cvc"],
             auto_pay=s["auto_pay"],
+            storage_state=self.auth_state_repository.get(),
         )
         try:
             result = run_snapup_job(
@@ -255,7 +261,7 @@ class JobService:
         """結帳頁就緒：先寫入結帳紀錄（瀏覽器還開著就能在控制台查看），
         再保持瀏覽器開啟直到使用者按「結束」"""
         auto_paid = bool(result.checkout and result.checkout.auto_pay_clicked)
-        record = self.checkout_store.add(
+        record = self.checkout_repository.add(
             gid=group.gid,
             sale_time=group.sale_time,
             status="auto_paid" if auto_paid else "awaiting_payment",
@@ -278,13 +284,15 @@ class JobService:
             for pid in result.success_ids:
                 self.set_job(pid, "success")
             if group.record_id:
-                record = self.checkout_store.update(group.record_id, completed=True)
+                record = self.checkout_repository.update(
+                    group.record_id, completed=True
+                )
                 if record:
                     self.bus.publish({"type": "checkout", "record": record})
             return
 
         if result.status == "cart_failed":
-            record = self.checkout_store.add(
+            record = self.checkout_repository.add(
                 gid=group.gid,
                 sale_time=group.sale_time,
                 status="cart_failed",
@@ -350,7 +358,7 @@ class JobService:
     def remove_product(self, pid: str) -> None:
         """刪除商品卡：先取消執行中的 job 再從清單移除"""
         self.cancel([pid])
-        self.store.remove(pid)
+        self.product_repository.remove(pid)
         self._jobs.pop(pid, None)
 
     def remove_products(self, pids: list[str]) -> None:
@@ -365,13 +373,13 @@ class JobService:
         """
         if self._is_active(pid):
             raise RuntimeError("任務執行中，無法修改開賣時間")
-        if not self.store.update_sale_time(pid, sale_time):
+        if not self.product_repository.update_sale_time(pid, sale_time):
             raise KeyError(pid)
 
     def state(self) -> dict:
         """products 與 groups 的執行期快照（auth/checkouts 由 API 層組裝）"""
         products = []
-        for item in self.store.list():
+        for item in self.product_repository.list():
             pid = item["id"]
             job = self._jobs.get(pid, JobState())
             products.append(

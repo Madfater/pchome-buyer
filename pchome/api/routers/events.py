@@ -10,7 +10,7 @@ import queue
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from ...services.event_bus import EventBus
+from ...infra.event_bus import EventBus
 from ..deps import Container, get_container
 
 router = APIRouter(prefix="/api", tags=["events"])

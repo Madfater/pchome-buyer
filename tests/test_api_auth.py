@@ -47,7 +47,7 @@ def test_status_live_without_auth_state_skips_real_browser_check(client, monkeyp
     monkeypatch.setattr(
         auth_service_module.session,
         "check_session_standalone",
-        lambda: calls.append(1) or True,
+        lambda state: calls.append(1) or True,
     )
     resp = client.get("/api/auth/status", params={"live": "true"})
     assert resp.status_code == 200
@@ -62,7 +62,7 @@ def test_status_live_with_auth_state_uses_mocked_check(client, monkeypatch):
     client.post("/api/auth/import", json={"payload": json.dumps(payload)})
 
     monkeypatch.setattr(
-        auth_service_module.session, "check_session_standalone", lambda: True
+        auth_service_module.session, "check_session_standalone", lambda state: True
     )
     resp = client.get("/api/auth/status", params={"live": "true"})
 

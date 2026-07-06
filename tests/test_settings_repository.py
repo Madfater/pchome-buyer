@@ -1,8 +1,8 @@
 import mongomock
 import pytest
 
-from pchome.services import settings_store as settings_store_module
-from pchome.services.settings_store import SettingsStore
+from pchome.repositories import settings_repository as settings_repository_module
+from pchome.repositories.settings_repository import SettingsRepository
 
 
 @pytest.fixture(autouse=True)
@@ -10,13 +10,13 @@ def no_real_env_file(monkeypatch, tmp_path):
     """絕不能讓測試讀到專案根目錄真實的 .env（可能含真實 CVC）；
     只有 TestEnvMigration 底下的測試會自行覆寫成受控的假 .env"""
     monkeypatch.setattr(
-        settings_store_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
+        settings_repository_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
     )
 
 
 def _store():
     db = mongomock.MongoClient()["test"]
-    return db, SettingsStore(db=db)
+    return db, SettingsRepository(db=db)
 
 
 class TestDefaults:
@@ -36,7 +36,7 @@ class TestDefaults:
     def test_reopening_same_db_does_not_reset_values(self):
         db, store = _store()
         store.update({"cvc": "999"})
-        reopened = SettingsStore(db=db)
+        reopened = SettingsRepository(db=db)
         assert reopened.get()["cvc"] == "999"
 
 
@@ -54,7 +54,7 @@ class TestUpdate:
     def test_update_persists(self):
         db, store = _store()
         store.update({"max_retries": 5})
-        assert SettingsStore(db=db).get()["max_retries"] == 5
+        assert SettingsRepository(db=db).get()["max_retries"] == 5
 
 
 class TestValidationBounds:
@@ -103,14 +103,12 @@ class TestEnvMigration:
     def test_migrates_cvc_and_auto_pay_from_legacy_env_on_first_creation(
         self, tmp_path, monkeypatch
     ):
-        from pchome.services import settings_store as settings_store_module
-
         env_file = tmp_path / ".env"
         env_file.write_text("CVC=456\nAUTO_PAY=true\n")
-        monkeypatch.setattr(settings_store_module, "LEGACY_ENV_FILE", env_file)
+        monkeypatch.setattr(settings_repository_module, "LEGACY_ENV_FILE", env_file)
 
         db = mongomock.MongoClient()["test"]
-        store = SettingsStore(db=db)
+        store = SettingsRepository(db=db)
 
         s = store.get()
         assert s["cvc"] == "456"
@@ -119,25 +117,23 @@ class TestEnvMigration:
     def test_does_not_remigrate_on_reopen_even_if_env_changes(
         self, tmp_path, monkeypatch
     ):
-        from pchome.services import settings_store as settings_store_module
-
         env_file = tmp_path / ".env"
         env_file.write_text("CVC=456\n")
-        monkeypatch.setattr(settings_store_module, "LEGACY_ENV_FILE", env_file)
+        monkeypatch.setattr(settings_repository_module, "LEGACY_ENV_FILE", env_file)
 
         db = mongomock.MongoClient()["test"]
-        SettingsStore(db=db)
+        SettingsRepository(db=db)
 
         env_file.write_text("CVC=999\n")
-        reopened = SettingsStore(db=db)
+        reopened = SettingsRepository(db=db)
         assert reopened.get()["cvc"] == "456"
 
     def test_missing_env_file_does_not_crash_init(self, tmp_path, monkeypatch):
-        from pchome.services import settings_store as settings_store_module
-
         monkeypatch.setattr(
-            settings_store_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
+            settings_repository_module,
+            "LEGACY_ENV_FILE",
+            tmp_path / "does_not_exist.env",
         )
         db = mongomock.MongoClient()["test"]
-        store = SettingsStore(db=db)
+        store = SettingsRepository(db=db)
         assert store.get()["cvc"] == ""

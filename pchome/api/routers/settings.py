@@ -22,12 +22,12 @@ class SettingsPatch(BaseModel):
 
 @router.get("")
 def get_settings(c: Container = Depends(get_container)):
-    return c.settings.get()
+    return c.settings_repository.get()
 
 
 @router.patch("")
 def update_settings(body: SettingsPatch, c: Container = Depends(get_container)):
     try:
-        return c.settings.update(body.model_dump(exclude_unset=True))
+        return c.settings_repository.update(body.model_dump(exclude_unset=True))
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

@@ -9,9 +9,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_ENV_FILE = PROJECT_ROOT / ".env"
 load_dotenv(LEGACY_ENV_FILE)
 
-AUTH_STATE_FILE = PROJECT_ROOT / "auth_state.json"
-PRODUCTS_FILE = PROJECT_ROOT / "products.json"
-CHECKOUTS_FILE = PROJECT_ROOT / "checkouts.json"
+LEGACY_AUTH_STATE_FILE = PROJECT_ROOT / "auth_state.json"
+LEGACY_PRODUCTS_FILE = PROJECT_ROOT / "products.json"
+LEGACY_CHECKOUTS_FILE = PROJECT_ROOT / "checkouts.json"
 
 # MongoDB 連線資訊（啟動前就要知道，無法存在資料庫裡）
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")

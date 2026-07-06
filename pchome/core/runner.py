@@ -11,16 +11,15 @@ import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable
+from typing import Callable, cast
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import StorageState, sync_playwright
 
 from . import session
 from .cancel import JobCancelled, cancellable_sleep
 from .cart import CartItemResult, add_with_retry
 from .checkout import CheckoutInfo, go_to_checkout
 from .config import (
-    AUTH_STATE_FILE,
     DEFAULT_INTERVAL_SECS,
     DEFAULT_LEAD_SECS,
     DEFAULT_MAX_RETRIES,
@@ -50,6 +49,7 @@ class JobConfig:
     retry_delay_secs: float = DEFAULT_RETRY_DELAY_SECS
     cvc: str = ""
     auto_pay: bool = False
+    storage_state: dict | None = None
 
 
 @dataclass
@@ -85,7 +85,7 @@ def run_snapup_job(
     if membership is None:
         membership = GroupMembership(cfg.product_ids)
 
-    if not session.has_auth_state():
+    if cfg.storage_state is None:
         reporter.log("錯誤: 尚未登入！請先執行 login 或在控制台匯入 cookie")
         return JobResult("not_logged_in")
 
@@ -98,7 +98,9 @@ def run_snapup_job(
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=cfg.headless)
             try:
-                context = browser.new_context(storage_state=AUTH_STATE_FILE)
+                context = browser.new_context(
+                    storage_state=cast(StorageState, cfg.storage_state)
+                )
                 page = context.new_page()
 
                 # 開跑前先確認 session 有效，避免等到開賣才發現要重新登入

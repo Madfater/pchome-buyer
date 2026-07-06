@@ -23,8 +23,7 @@ class FakeReporter(Reporter):
 
 
 class TestRunSnapupJobAuthGate:
-    def test_returns_not_logged_in_without_touching_playwright(self, monkeypatch):
-        monkeypatch.setattr(runner_module.session, "has_auth_state", lambda: False)
+    def test_returns_not_logged_in_without_touching_playwright(self):
         reporter = FakeReporter()
         cfg = JobConfig(product_ids=["A-1"])
 

@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -21,18 +19,6 @@ class FakePage:
     def wait_for_url(self, pattern, timeout=None):
         if not self._redirects_to_login:
             raise PlaywrightTimeout("no redirect within timeout")
-
-
-class TestHasAuthState:
-    def test_true_when_file_exists(self, tmp_path, monkeypatch):
-        path = tmp_path / "auth_state.json"
-        path.write_text("{}")
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", path)
-        assert session.has_auth_state() is True
-
-    def test_false_when_file_missing(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", tmp_path / "missing.json")
-        assert session.has_auth_state() is False
 
 
 class TestCheckSession:
@@ -155,39 +141,8 @@ class FakeSyncPlaywright:
         return False
 
 
-class TestSaveAuthState:
-    def test_writes_storage_state_as_json(self, monkeypatch, tmp_path):
-        auth_file = tmp_path / "auth_state.json"
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", auth_file)
-
-        class FakeCtx:
-            def storage_state(self):
-                return {"cookies": [{"name": "a"}], "origins": []}
-
-        session.save_auth_state(FakeCtx())
-
-        assert json.loads(auth_file.read_text())["cookies"] == [{"name": "a"}]
-
-
 class TestCheckSessionStandalone:
-    def test_returns_false_without_launching_playwright_when_no_auth_state(
-        self, monkeypatch
-    ):
-        monkeypatch.setattr(session, "has_auth_state", lambda: False)
-
-        def boom():
-            raise AssertionError("不該在沒有 auth state 時啟動瀏覽器")
-
-        monkeypatch.setattr(session, "sync_playwright", boom)
-
-        assert session.check_session_standalone() is False
-
-    def test_launches_headless_context_with_auth_state_and_delegates(
-        self, monkeypatch, tmp_path
-    ):
-        monkeypatch.setattr(session, "has_auth_state", lambda: True)
-        auth_file = tmp_path / "auth_state.json"
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", auth_file)
+    def test_launches_headless_context_with_auth_state_and_delegates(self, monkeypatch):
         fake_pw = FakeSyncPlaywright()
         monkeypatch.setattr(session, "sync_playwright", fake_pw)
         received_pages = []
@@ -197,20 +152,19 @@ class TestCheckSessionStandalone:
             return True
 
         monkeypatch.setattr(session, "check_session", fake_check_session)
+        state = {"cookies": [], "origins": []}
 
-        result = session.check_session_standalone()
+        result = session.check_session_standalone(state)
 
         assert result is True
         assert fake_pw.p.chromium.launch_headless_args == [True]
         browser = fake_pw.p.chromium.launched[0]
         ctx = browser.contexts[0]
-        assert ctx.init_kwargs.get("storage_state") == auth_file
+        assert ctx.init_kwargs.get("storage_state") == state
         assert received_pages == ctx.pages
         assert browser.closed is True
 
-    def test_closes_browser_even_if_check_session_raises(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(session, "has_auth_state", lambda: True)
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", tmp_path / "auth_state.json")
+    def test_closes_browser_even_if_check_session_raises(self, monkeypatch):
         fake_pw = FakeSyncPlaywright()
         monkeypatch.setattr(session, "sync_playwright", fake_pw)
 
@@ -220,6 +174,6 @@ class TestCheckSessionStandalone:
         monkeypatch.setattr(session, "check_session", boom_check_session)
 
         with pytest.raises(RuntimeError):
-            session.check_session_standalone()
+            session.check_session_standalone({"cookies": [], "origins": []})
 
         assert fake_pw.p.chromium.launched[0].closed is True

@@ -1,6 +1,6 @@
 import queue
 
-from pchome.services.event_bus import EventBus
+from pchome.infra.event_bus import EventBus
 
 
 def test_publish_delivers_to_subscriber():
