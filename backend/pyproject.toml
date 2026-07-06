@@ -21,6 +21,7 @@ pchome = "pchome.cli:main"
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "import-linter>=2.13",
     "mongomock>=4.3.0",
     "pytest>=9.1.1",
     "ruff>=0.15.20",
@@ -35,3 +36,16 @@ target-version = "py311"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pchome"]
+
+[tool.importlinter]
+root_package = "pchome"
+
+# pchome.repositories 與 pchome.infra 刻意不列入這份 contract（分層只要求 api/services/core 三層）
+[[tool.importlinter.contracts]]
+name = "Layered architecture (api > services > core)"
+type = "layers"
+layers = [
+    "pchome.api",
+    "pchome.services",
+    "pchome.core",
+]

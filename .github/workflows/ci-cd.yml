@@ -16,6 +16,8 @@ jobs:
         working-directory: backend
       - run: uv run pytest
         working-directory: backend
+      - run: uv run lint-imports
+        working-directory: backend
       - run: uv run --with pyright pyright src/pchome
         working-directory: backend
       - run: uv run ruff format --check .
