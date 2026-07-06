@@ -1,6 +1,6 @@
 # PChome 24h 搶購工具
 
-使用 Playwright 瀏覽器自動化，監控 PChome 24h 商品開賣狀態，自動加入購物車並結帳。主要介面是網頁控制台（React + FastAPI），CLI 為輔助工具，支援部署在遠端伺服器。
+使用 Playwright 瀏覽器自動化，監控 PChome 24h 商品開賣狀態，自動加入購物車並結帳。主要介面是網頁控制台（React + FastAPI），支援部署在遠端伺服器。
 
 ## 安裝
 
@@ -31,13 +31,12 @@ AUTO_PAY=false
 ## 使用方式（網頁控制台）
 
 ```bash
-uv run python main.py web                    # http://127.0.0.1:8787
-uv run python main.py web --port 9000
-uv run python main.py web --host 0.0.0.0     # 遠端部署（見下方安全性說明）
+uv run python main.py                    # http://127.0.0.1:8787
+uv run python main.py --port 9000
+uv run python main.py --host 0.0.0.0     # 遠端部署（見下方安全性說明）
 ```
 
 1. **登入**：按「登入」開啟匯入視窗，貼上登入憑證：
-   - 在本機執行 `uv run python main.py login`（開瀏覽器手動登入），把產生的 `auth_state.json` 內容貼上或上傳；或
    - 用瀏覽器擴充功能（Cookie-Editor、EditThisCookie 等）在已登入的 PChome 分頁匯出 cookie JSON 貼上。
    - 匯入後可按「檢查 session」實測有效性。
 2. **新增任務**：按「＋ 新增任務」，貼上商品頁網址（如 `https://24h.pchome.com.tw/prod/DGCQ39-A900JESMM`）或商品編號，選填開始監測時間（留空 = 立即監控）。
@@ -48,40 +47,10 @@ uv run python main.py web --host 0.0.0.0     # 遠端部署（見下方安全性
 ### 前端開發
 
 ```bash
-uv run python main.py web              # 終端 1：後端 API
+uv run python main.py                  # 終端 1：後端 API
 npm --prefix frontend run dev          # 終端 2：Vite dev server（自動代理 /api）
 ```
 
 ### 安全性
 
 控制台**本身沒有認證機制**。預設只綁 `127.0.0.1`；以 `--host 0.0.0.0` 部署到遠端時，請務必用反向代理（nginx basic auth、Cloudflare Access、VPN 等）保護存取——`.env` 裡有信用卡安全碼、`auth_state.json` 是你的登入身分。
-
-## 使用方式（CLI，輔助）
-
-```bash
-# 登入：開瀏覽器手動登入，儲存 session 至 auth_state.json
-# （遠端部署時，這個檔案的內容就是控制台「登入」視窗要貼的憑證）
-uv run python main.py login
-
-# 搶購單一商品
-uv run python main.py buy DGCQ39-A900JESMM
-
-# 搶購多個商品（同時監控，全部加入購物車後結帳）
-uv run python main.py buy DGCQ39-A900JESMM DGCQ39-A900I4PN6
-
-# 無頭模式（不顯示瀏覽器視窗）
-uv run python main.py buy DGCQ39-A900JESMM --headless
-
-# 自訂輪詢間隔（預設 0.5 秒，實際會在 0.5x~1.5x 間隨機）
-uv run python main.py buy DGCQ39-A900JESMM --interval 0.3
-
-# 指定開賣時間：距開賣超過 5 分鐘會先睡眠，開賣前 5 分鐘自動開始監控，
-# 前 15 秒才全速輪詢（之前以 4 倍間隔慢速輪詢）
-uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00"
-
-# 調整提前啟動監控的秒數（預設 300 秒 = 5 分鐘）
-uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00" --lead 600
-
-# 背景執行
-nohup uv run python main.py buy DGCQ39-A900JESMM --sale-time "2026-03-06 12:00" --headless > buy.log 2>&1 &
-```

@@ -36,4 +36,4 @@ RUN mkdir -p /data \
     && ln -s /data/checkouts.json /app/checkouts.json
 
 EXPOSE 8787
-CMD ["/app/.venv/bin/python", "main.py", "web", "--host", "0.0.0.0"]
+CMD ["/app/.venv/bin/python", "main.py", "--host", "0.0.0.0"]

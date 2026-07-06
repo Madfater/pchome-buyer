@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-PChome 24h 限量商品搶購工具：Playwright 自動化，主介面是 web 控制面板（React + Vite 前端、FastAPI 後端），CLI（`login` / `buy`）是輔助。每個商品是一張可獨立啟動的 job 卡；同一開賣時間的 job 在執行期合併成一個 run-group（一個瀏覽器、一次批次輪詢、一次結帳）。
+PChome 24h 限量商品搶購工具：Playwright 自動化，主介面是 web 控制面板（React + Vite 前端、FastAPI 後端）。每個商品是一張可獨立啟動的 job 卡；同一開賣時間的 job 在執行期合併成一個 run-group（一個瀏覽器、一次批次輪詢、一次結帳）。
 
 ## 指令
 
@@ -10,12 +10,8 @@ uv run playwright install chromium      # 裝瀏覽器（一次）
 npm --prefix frontend install           # 前端依賴
 npm --prefix frontend run build         # 前端 build（FastAPI 服務面板前必跑）
 
-uv run python main.py web [--port 9000] [--host 0.0.0.0]   # 面板 http://127.0.0.1:8787
+uv run python main.py [--port 9000] [--host 0.0.0.0]   # 面板 http://127.0.0.1:8787
 npm --prefix frontend run dev           # 前端開發（另開終端，proxy /api 到 :8787）
-
-uv run python main.py login             # 有頭瀏覽器手動登入 → auth_state.json
-uv run python main.py buy DGCQ39-A900JESMM [--headless] [--interval 0.3] \
-    [--sale-time "2026-03-06 12:00"] [--lead 600]
 
 # 檢查（改完必跑對應項；純邏輯測試只覆蓋不碰瀏覽器/網路的模組，行為改動仍要實跑驗證）
 uv run pytest                           # 改了 core/timing、services/product_id、core/membership、services/auth_service 必跑

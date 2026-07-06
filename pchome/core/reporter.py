@@ -1,4 +1,4 @@
-"""輸出抽象層：核心流程透過 Reporter 回報進度，由 CLI（終端機）或網頁（SSE）各自實作"""
+"""輸出抽象層：核心流程透過 Reporter 回報進度，由網頁（SSE）等實作各自處理"""
 
 
 class Reporter:
@@ -16,20 +16,3 @@ class Reporter:
     def phase(self, name: str) -> None:
         """流程階段變更（lead_wait/checking_session/monitoring/carting/checkout/holding），
         供服務層追蹤 run-group 狀態；終端機輸出不需要，預設 no-op"""
-
-
-class ConsoleReporter(Reporter):
-    """終端機輸出：progress 用 \\r 覆寫同一行，log 會先換行避免蓋到進度列"""
-
-    def __init__(self):
-        self._transient = False
-
-    def log(self, msg: str) -> None:
-        if self._transient:
-            print()
-            self._transient = False
-        print(msg)
-
-    def progress(self, msg: str) -> None:
-        print(f"\r{msg}", end="", flush=True)
-        self._transient = True

@@ -4,7 +4,7 @@ import pytest
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from pchome.core import session
-from pchome.core.config import CART_URL, HOME_URL
+from pchome.core.config import CART_URL
 
 
 class FakePage:
@@ -56,11 +56,9 @@ class TestCheckSession:
 
 
 class FakeLoginPage:
-    """模擬 login_flow() 需要的 goto / get_by_role().click()
+    """模擬 sync_playwright() 產生的 page 物件：goto / get_by_role().click()
 
-    calls: 跨所有 fake 物件共用的呼叫序列 log，讓測試能斷言「順序」
-    （例如 wait_for_user() 必須發生在 save_auth_state() 之前），
-    而不只是斷言「每件事各自發生過一次」。
+    calls: 跨所有 fake 物件共用的呼叫序列 log，供需要斷言呼叫順序的測試使用。
     """
 
     def __init__(self, calls: list[str] | None = None):
@@ -155,42 +153,6 @@ class FakeSyncPlaywright:
 
     def __exit__(self, *a):
         return False
-
-
-class TestLoginFlow:
-    def test_navigates_clicks_login_waits_then_saves_state(self, monkeypatch, tmp_path):
-        calls: list[str] = []
-        fake_pw = FakeSyncPlaywright(calls=calls)
-        monkeypatch.setattr(session, "sync_playwright", fake_pw)
-        auth_file = tmp_path / "auth_state.json"
-        monkeypatch.setattr(session, "AUTH_STATE_FILE", auth_file)
-
-        # session.save_auth_state 是模組全域名稱，login_flow 內部呼叫時是即時查找，
-        # 換成會記錄呼叫時間點、但仍委派給原函式的包裝版本，藉此驗證呼叫順序
-        original_save_auth_state = session.save_auth_state
-
-        def logged_save_auth_state(context):
-            calls.append("save")
-            return original_save_auth_state(context)
-
-        monkeypatch.setattr(session, "save_auth_state", logged_save_auth_state)
-
-        def wait_for_user():
-            calls.append("wait")
-
-        session.login_flow(wait_for_user)
-
-        # 順序斷言：goto → click → wait_for_user() → save_auth_state() → close()
-        # 這條會抓到「等使用者登入前就先存檔」這種錯誤，光靠各自獨立的旗標測不出來
-        assert calls == ["goto", "click", "wait", "save", "close"]
-
-        assert fake_pw.p.chromium.launch_headless_args == [False]
-        browser = fake_pw.p.chromium.launched[0]
-        page = browser.contexts[0].pages[0]
-        assert page.goto_calls == [HOME_URL]
-        assert page.clicked == [("button", "登入")]
-        assert browser.closed is True
-        assert json.loads(auth_file.read_text()) == {"cookies": [], "origins": []}
 
 
 class TestSaveAuthState:

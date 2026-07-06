@@ -1,30 +1,10 @@
 """登入 session 的建立、儲存、載入與有效性檢查"""
 
 import json
-from typing import Callable
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
-from .config import AUTH_STATE_FILE, CART_URL, HOME_URL
-
-
-def login_flow(wait_for_user: Callable[[], None]) -> None:
-    """開啟有頭瀏覽器導向登入頁，待 wait_for_user() 返回後儲存 session
-
-    wait_for_user 由呼叫端決定阻塞方式：CLI 用 input()，網頁端用 Event.wait()。
-    """
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
-
-        page.goto(HOME_URL)
-        page.get_by_role("button", name="登入").click()
-
-        wait_for_user()
-
-        save_auth_state(context)
-        browser.close()
+from .config import AUTH_STATE_FILE, CART_URL
 
 
 def save_auth_state(context) -> None:
