@@ -14,7 +14,9 @@ jobs:
           enable-cache: true
       - run: uv sync
         working-directory: backend
-      - run: uv run pytest
+      - run: uv run pytest tests/unit
+        working-directory: backend
+      - run: uv run pytest tests/integration
         working-directory: backend
       - run: uv run lint-imports
         working-directory: backend
