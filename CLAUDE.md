@@ -72,7 +72,7 @@ npm --prefix frontend run build && cd backend && PYTHONPATH=. uv run pytest ../e
 
 ## 環境
 
-本機開發需要一個可連線的 MongoDB（`docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:7`）。
+本機開發需要一個可連線的 MongoDB（`docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:4.4`；釘 4.4 是因為 5.0+ 要求 CPU 支援 AVX，部署機沒有）。
 `.env`（見 `.env.example`）只放 `MONGO_URI`/`MONGO_DB` 連線資訊；CVC/AUTO_PAY 與搶購時機/進階調校參數改在面板齒輪圖示的「設定」視窗管理，存 MongoDB（細節見 architecture.md）。
 執行期資料（商品/結帳/登入 session）皆存 MongoDB；根目錄舊版 `products.json`/`checkouts.json`/`auth_state.json`（均 gitignore）僅供一次性搬移，之後可留可刪。
 本機是 Fedora WSL2：`playwright install-deps` 會失敗，缺系統依賴改用 `dnf`。

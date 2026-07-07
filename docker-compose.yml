@@ -33,12 +33,12 @@ services:
       start_period: 15s
 
   mongo:
-    image: mongo:7
+    image: mongo:4.4
     volumes:
       - mongo-data:/data/db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       start_period: 10s

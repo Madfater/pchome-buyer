@@ -6,7 +6,7 @@
 
 ```bash
 # 本機開發需要一個可連線的 MongoDB
-docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:7
+docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:4.4
 
 # 後端依賴（backend/ 是獨立的 src-layout 專案）
 cd backend
