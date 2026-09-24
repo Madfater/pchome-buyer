@@ -50,7 +50,7 @@ npm --prefix frontend run build && cd backend && PYTHONPATH=. uv run pytest ../e
 4. **MAC 只有約 15 秒有效** → membership 在加購前 `freeze()`；`carting` phase 之後絕不可變動 group 的商品集合。
 5. **一個輪詢迴圈**：多商品用一次批次 `prod/button` 呼叫同時監控，不是一商品一頁。
 6. `PRODCOUNT`/`PRODTOTAL` 是該次加入後的**整車累計**，不是單品數量/價格。
-7. **會花真錢**：`AUTO_PAY=true` 會自動點確認付款，任何測試不可跑到真實結帳。CVC 與登入 session 皆存 MongoDB（設定視窗管理；本機舊 `.env`/`auth_state.json` 可能殘留作一次性 migration 來源）——不讀進對話、不印出、不外傳；回傳這些欄位一律先 redact。
+7. **會花真錢**：`AUTO_PAY=true` 會自動點確認付款，任何測試不可跑到真實結帳。CVC 與登入 session 皆存 PostgreSQL（設定視窗管理；本機舊 `.env`/`auth_state.json` 可能殘留作一次性 migration 來源）——不讀進對話、不印出、不外傳；回傳這些欄位一律先 redact。
 8. web job 一律 headless（遠端部署）；`AUTO_PAY=false` 時遠端無法手動付款——遠端部署建議 `AUTO_PAY=true`。
 9. 面板**無認證層**：預設綁 127.0.0.1；`--host 0.0.0.0` 需靠反向代理保護（basic auth/VPN/Cloudflare Access）。
 10. checkout 的 payinfo 擷取是 best-effort：擷取失敗絕不能中斷付款流程（selector 未經實地驗證）。
@@ -72,8 +72,8 @@ npm --prefix frontend run build && cd backend && PYTHONPATH=. uv run pytest ../e
 
 ## 環境
 
-本機開發需要一個可連線的 MongoDB（`docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:4.4`；釘 4.4 是因為 5.0+ 要求 CPU 支援 AVX，部署機沒有）。
-`.env`（見 `.env.example`）只放 `MONGO_URI`/`MONGO_DB` 連線資訊；CVC/AUTO_PAY 與搶購時機/進階調校參數改在面板齒輪圖示的「設定」視窗管理，存 MongoDB（細節見 architecture.md）。
-執行期資料（商品/結帳/登入 session）皆存 MongoDB；根目錄舊版 `products.json`/`checkouts.json`/`auth_state.json`（均 gitignore）僅供一次性搬移，之後可留可刪。
+本機開發需要一個可連線的 PostgreSQL（`docker run -d -p 127.0.0.1:5432:5432 -e POSTGRES_USER=pchome -e POSTGRES_PASSWORD=pchome -e POSTGRES_DB=pchome_buyer -v pchome-pg-data:/var/lib/postgresql/data postgres:16-alpine`；資料表啟動時自動建立）。
+`.env`（見 `.env.example`）只放 `DATABASE_URL`（SQLAlchemy URL）連線資訊；CVC/AUTO_PAY 與搶購時機/進階調校參數改在面板齒輪圖示的「設定」視窗管理，存 PostgreSQL（細節見 architecture.md）。
+執行期資料（商品/結帳/登入 session）皆存 PostgreSQL；根目錄舊版 `products.json`/`checkouts.json`/`auth_state.json`（均 gitignore）僅供一次性搬移，之後可留可刪。
 本機是 Fedora WSL2：`playwright install-deps` 會失敗，缺系統依賴改用 `dnf`。
 **push 到 master ＝ 自動部署遠端實例**（可能帶真憑證與 `AUTO_PAY=true`）——push 前確認使用者要的是部署；細節見 50-letter.md 第 1 件事。

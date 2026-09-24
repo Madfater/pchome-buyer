@@ -9,14 +9,13 @@ services:
       - "127.0.0.1:8787:8787"
     environment:
       - TZ=Asia/Taipei # 開賣時間以此時區解析
-      - MONGO_URI=mongodb://mongo:27017
-      - MONGO_DB=pchome_buyer
-      # CVC/AUTO_PAY 等實際設定值已移至面板的「設定」視窗，存在 Mongo 裡，不再透過環境變數帶入
+      - DATABASE_URL=postgresql+psycopg://pchome:${POSTGRES_PASSWORD:-pchome}@postgres:5432/pchome_buyer
+      # CVC/AUTO_PAY 等實際設定值在面板的「設定」視窗管理，存在 PostgreSQL 裡，不透過環境變數帶入
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
     volumes:
-      - ./data:/data # auth_state.json / products.json / checkouts.json（settings 已搬到 Mongo）
+      - ./data:/data # 舊版 auth_state.json / products.json / checkouts.json（僅供一次性 migration）
     init: true # 回收 Chromium 子行程
     shm_size: 1gb # Chromium 需要較大的 /dev/shm
     restart: unless-stopped
@@ -32,17 +31,21 @@ services:
       timeout: 10s
       start_period: 15s
 
-  mongo:
-    image: mongo:4.4
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=pchome
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pchome}
+      - POSTGRES_DB=pchome_buyer
     volumes:
-      - mongo-data:/data/db
+      - pg-data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "pg_isready", "-U", "pchome", "-d", "pchome_buyer"]
       interval: 10s
       timeout: 5s
       start_period: 10s
     # 刻意不對外 publish port，只在 compose 內部網路可連線
 
 volumes:
-  mongo-data:
+  pg-data:

@@ -10,7 +10,7 @@
 
 ### 2. 這個工具花真錢，而且錢與憑證的入口比你以為的多
 
-入口清單：MongoDB `settings` collection 裡的真 CVC＋`AUTO_PAY`（面板設定視窗管理）、本機舊 `.env` 可能殘留的 legacy CVC、`auth_state.json`（repo 根目錄，活的登入 session）、`GET /api/settings`（回傳 `cvc` 欄位——手動 curl 驗證先 redact 再看，別直接印原始 JSON）。測試或腳本要建 `SettingsRepository` 一律走 `tests/support/isolated_container.py`，否則它的 `.env` migration 會讀到真實 CVC。實跑驗證的安全邊界：**可以**啟動服務、加商品、看狀態機、用不存在的商品 ID 觀察失敗路徑；**絕不可以**讓真實可買商品的 job 跑進 carting/checkout phase。`auth_state.json` 不要 Read 進對話、不要出現在 diff、log、或任何外傳內容裡。
+入口清單：PostgreSQL `settings` table 裡的真 CVC＋`AUTO_PAY`（面板設定視窗管理）、本機舊 `.env` 可能殘留的 legacy CVC、`auth_state.json`（repo 根目錄，活的登入 session）、`GET /api/settings`（回傳 `cvc` 欄位——手動 curl 驗證先 redact 再看，別直接印原始 JSON）。測試或腳本要建 `SettingsRepository` 一律走 `tests/support/isolated_container.py`，否則它的 `.env` migration 會讀到真實 CVC。實跑驗證的安全邊界：**可以**啟動服務、加商品、看狀態機、用不存在的商品 ID 觀察失敗路徑；**絕不可以**讓真實可買商品的 job 跑進 carting/checkout phase。`auth_state.json` 不要 Read 進對話、不要出現在 diff、log、或任何外傳內容裡。
 
 ### 3. 失敗時先懷疑「PChome 契約漂移」，再懷疑 regression
 

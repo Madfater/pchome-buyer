@@ -1,27 +1,29 @@
-import mongomock
+import sqlalchemy as sa
 
+from pchome.infra.db import auth_state_table
 from pchome.repositories import auth_state_repository as auth_state_repository_module
 from pchome.repositories.auth_state_repository import AuthStateRepository
+from tests.support.db import memory_engine
 
 
-def _db():
-    return mongomock.MongoClient()["test"]
+def _engine():
+    return memory_engine()
 
 
 def test_get_returns_none_when_never_saved():
-    store = AuthStateRepository(db=_db())
+    store = AuthStateRepository(engine=_engine())
     assert store.get() is None
 
 
 def test_save_then_get_roundtrips():
-    store = AuthStateRepository(db=_db())
+    store = AuthStateRepository(engine=_engine())
     state = {"cookies": [{"name": "a", "value": "1"}], "origins": []}
     store.save(state)
     assert store.get() == state
 
 
 def test_save_overwrites_previous_state():
-    store = AuthStateRepository(db=_db())
+    store = AuthStateRepository(engine=_engine())
     store.save({"cookies": [{"name": "old"}], "origins": []})
     store.save({"cookies": [{"name": "new"}], "origins": []})
     assert store.get()["cookies"] == [{"name": "new"}]
@@ -37,7 +39,7 @@ class TestLegacyMigration:
             auth_state_repository_module, "LEGACY_AUTH_STATE_FILE", legacy_file
         )
 
-        store = AuthStateRepository(db=_db())
+        store = AuthStateRepository(engine=_engine())
 
         assert store.get() == {
             "cookies": [{"name": "a", "value": "1"}],
@@ -50,7 +52,7 @@ class TestLegacyMigration:
             "LEGACY_AUTH_STATE_FILE",
             tmp_path / "does_not_exist.json",
         )
-        store = AuthStateRepository(db=_db())
+        store = AuthStateRepository(engine=_engine())
         assert store.get() is None
 
     def test_does_not_migrate_when_legacy_file_is_not_a_storage_state_shape(
@@ -61,7 +63,7 @@ class TestLegacyMigration:
         monkeypatch.setattr(
             auth_state_repository_module, "LEGACY_AUTH_STATE_FILE", legacy_file
         )
-        store = AuthStateRepository(db=_db())
+        store = AuthStateRepository(engine=_engine())
         assert store.get() is None
 
     def test_does_not_remigrate_once_singleton_exists(self, tmp_path, monkeypatch):
@@ -71,10 +73,14 @@ class TestLegacyMigration:
             auth_state_repository_module, "LEGACY_AUTH_STATE_FILE", legacy_file
         )
 
-        db = _db()
-        db["auth_state"].insert_one(
-            {"_id": "singleton", "cookies": [{"name": "existing"}], "origins": []}
-        )
+        engine = _engine()
+        with engine.begin() as conn:
+            conn.execute(
+                sa.insert(auth_state_table).values(
+                    id="singleton",
+                    state={"cookies": [{"name": "existing"}], "origins": []},
+                )
+            )
 
-        store = AuthStateRepository(db=db)
+        store = AuthStateRepository(engine=engine)
         assert store.get()["cookies"] == [{"name": "existing"}]
