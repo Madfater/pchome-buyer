@@ -1,4 +1,4 @@
-"""使用者可調整設定的持久化（MongoDB `settings` collection，單一文件）
+"""使用者可調整設定的持久化（PostgreSQL `settings` table，單一列，data 欄位是設定 dict）
 
 收納原本散落在 .env（CVC/AUTO_PAY）與 core/config.py、core/cart.py 常數裡的可調參數，
 讓面板的設定視窗可以讀寫。核心模組（core/）維持不碰持久化：這裡讀出的值一律以明確參數
@@ -7,7 +7,8 @@
 
 from pathlib import Path
 
-from pymongo.database import Database
+import sqlalchemy as sa
+from sqlalchemy.engine import Engine
 
 from ..core.config import (
     DEFAULT_INTERVAL_SECS,
@@ -19,9 +20,10 @@ from ..core.config import (
     RESYNC_SECS,
     SLOW_POLL_FACTOR,
 )
-from ..infra.mongo import get_db
+from ..infra.db import get_engine, settings_table
 
 _ID = "singleton"
+_t = settings_table
 
 _DEFAULTS = {
     "cvc": "",
@@ -48,28 +50,38 @@ _BOUNDS = {
 
 
 class SettingsRepository:
-    def __init__(self, db: Database | None = None):
-        self._col = (db if db is not None else get_db())["settings"]
-        result = self._col.update_one(
-            {"_id": _ID}, {"$setOnInsert": _DEFAULTS}, upsert=True
-        )
-        if result.upserted_id is not None:
+    def __init__(self, engine: Engine | None = None):
+        self._engine = engine if engine is not None else get_engine()
+        with self._engine.begin() as conn:
+            created = self._read(conn) is None
+            if created:
+                conn.execute(sa.insert(_t).values(id=_ID, data=dict(_DEFAULTS)))
+        if created:
             self._migrate_from_legacy_env()
 
     def get(self) -> dict:
-        doc = self._col.find_one({"_id": _ID}) or dict(_DEFAULTS)
-        doc.pop("_id", None)
-        return doc
+        with self._engine.connect() as conn:
+            return {**_DEFAULTS, **(self._read(conn) or {})}
 
     def update(self, partial: dict) -> dict:
         """驗證後套用部分更新，回傳合併後的完整設定"""
         changes = {k: _validate(k, v) for k, v in partial.items()}
         if changes:
-            self._col.update_one({"_id": _ID}, {"$set": changes})
+            self._apply(changes)
         return self.get()
 
+    def _read(self, conn) -> dict | None:
+        return conn.execute(
+            sa.select(_t.c.data).where(_t.c.id == _ID)
+        ).scalar_one_or_none()
+
+    def _apply(self, changes: dict) -> None:
+        with self._engine.begin() as conn:
+            data = {**_DEFAULTS, **(self._read(conn) or {}), **changes}
+            conn.execute(sa.update(_t).where(_t.c.id == _ID).values(data=data))
+
     def _migrate_from_legacy_env(self) -> None:
-        """settings 文件第一次建立時，若有舊版 .env 就一次性搬入 CVC/AUTO_PAY"""
+        """settings 列第一次建立時，若有舊版 .env 就一次性搬入 CVC/AUTO_PAY"""
         try:
             legacy = _parse_env_file(LEGACY_ENV_FILE)
         except Exception:
@@ -80,7 +92,7 @@ class SettingsRepository:
         if "AUTO_PAY" in legacy:
             changes["auto_pay"] = legacy["AUTO_PAY"].strip().lower() == "true"
         if changes:
-            self._col.update_one({"_id": _ID}, {"$set": changes})
+            self._apply(changes)
 
 
 def _validate(key: str, value):

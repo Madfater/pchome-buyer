@@ -27,7 +27,7 @@
 
 ## 第 3 名：憑證與真錢從意想不到的出口洩進對話（後果最重）
 
-**症狀**：這個 repo 的敏感面不只「別跑到結帳」。真 CVC 存在 MongoDB `settings` collection（舊 `.env` 可能殘留一份）、`auth_state.json` 是活的登入 session，而它們會從看似無害的操作洩出：`GET /api/settings` 回傳 `cvc` 欄位（手動 curl 驗證直接印 JSON 就洩了）、`SettingsRepository` 建構時會讀真實 `.env` 做 migration（測試 fixture 沒隔離就把真 CVC 拉進測試輸出）。2026-07-06 已實際發生兩次（見下方教訓紀錄引用的 architecture.md 條目）。
+**症狀**：這個 repo 的敏感面不只「別跑到結帳」。真 CVC 存在資料庫 `settings` table（2026-09-24 起為 PostgreSQL，之前是 MongoDB）（舊 `.env` 可能殘留一份）、`auth_state.json` 是活的登入 session，而它們會從看似無害的操作洩出：`GET /api/settings` 回傳 `cvc` 欄位（手動 curl 驗證直接印 JSON 就洩了）、`SettingsRepository` 建構時會讀真實 `.env` 做 migration（測試 fixture 沒隔離就把真 CVC 拉進測試輸出）。2026-07-06 已實際發生兩次（見下方教訓紀錄引用的 architecture.md 條目）。
 
 **自我檢測**：任何會輸出設定值、環境變數、cookie、API 回應的指令，執行前問「輸出裡可能有 CVC 或登入憑證嗎？」可能 → 先過濾再看。
 

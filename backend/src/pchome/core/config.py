@@ -17,9 +17,11 @@ LEGACY_AUTH_STATE_FILE = PROJECT_ROOT / "auth_state.json"
 LEGACY_PRODUCTS_FILE = PROJECT_ROOT / "products.json"
 LEGACY_CHECKOUTS_FILE = PROJECT_ROOT / "checkouts.json"
 
-# MongoDB 連線資訊（啟動前就要知道，無法存在資料庫裡）
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB", "pchome_buyer")
+# PostgreSQL 連線字串（SQLAlchemy URL；啟動前就要知道，無法存在資料庫裡）
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg://pchome:pchome@localhost:5432/pchome_buyer",
+)
 
 # PChome API endpoints
 HOME_URL = "https://24h.pchome.com.tw/"

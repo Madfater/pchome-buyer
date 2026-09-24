@@ -1,11 +1,13 @@
-import mongomock
+import sqlalchemy as sa
 
+from pchome.infra.db import checkouts_table
 from pchome.repositories import checkout_repository as checkout_repository_module
 from pchome.repositories.checkout_repository import CheckoutRecordRepository
+from tests.support.db import memory_engine
 
 
-def _db():
-    return mongomock.MongoClient()["test"]
+def _engine():
+    return memory_engine()
 
 
 def _add(store, **overrides):
@@ -21,13 +23,13 @@ def _add(store, **overrides):
     return store.add(**kwargs)
 
 
-def test_starts_empty_when_collection_missing():
-    store = CheckoutRecordRepository(db=_db())
+def test_starts_empty_when_table_empty():
+    store = CheckoutRecordRepository(engine=_engine())
     assert store.list() == []
 
 
 def test_add_inserts_newest_first():
-    store = CheckoutRecordRepository(db=_db())
+    store = CheckoutRecordRepository(engine=_engine())
     first = _add(store, gid="g1")
     second = _add(store, gid="g2")
     assert [r["gid"] for r in store.list()] == ["g2", "g1"]
@@ -36,15 +38,15 @@ def test_add_inserts_newest_first():
 
 
 def test_add_persists_across_reinstantiation():
-    db = _db()
-    store = CheckoutRecordRepository(db=db)
+    engine = _engine()
+    store = CheckoutRecordRepository(engine=engine)
     _add(store, gid="g1")
-    reloaded = CheckoutRecordRepository(db=db)
+    reloaded = CheckoutRecordRepository(engine=engine)
     assert [r["gid"] for r in reloaded.list()] == ["g1"]
 
 
 def test_update_existing_record():
-    store = CheckoutRecordRepository(db=_db())
+    store = CheckoutRecordRepository(engine=_engine())
     record = _add(store)
     updated = store.update(record["id"], completed=True, status="success")
     assert updated is not None
@@ -54,12 +56,12 @@ def test_update_existing_record():
 
 
 def test_update_missing_id_returns_none():
-    store = CheckoutRecordRepository(db=_db())
+    store = CheckoutRecordRepository(engine=_engine())
     assert store.update("missing-id", completed=True) is None
 
 
 def test_clear_completed_removes_only_completed_and_returns_count():
-    store = CheckoutRecordRepository(db=_db())
+    store = CheckoutRecordRepository(engine=_engine())
     r1 = _add(store, gid="g1")
     _add(store, gid="g2")
     store.update(r1["id"], completed=True)
@@ -73,7 +75,7 @@ def test_clear_completed_removes_only_completed_and_returns_count():
 
 
 def test_list_returns_copies_not_live_references():
-    store = CheckoutRecordRepository(db=_db())
+    store = CheckoutRecordRepository(engine=_engine())
     _add(store, gid="g1")
     snapshot = store.list()
     snapshot[0]["gid"] = "mutated"
@@ -97,7 +99,7 @@ class TestLegacyMigration:
             checkout_repository_module, "LEGACY_CHECKOUTS_FILE", legacy_file
         )
 
-        store = CheckoutRecordRepository(db=_db())
+        store = CheckoutRecordRepository(engine=_engine())
 
         assert [r["gid"] for r in store.list()] == ["g2", "g1"]
 
@@ -107,12 +109,10 @@ class TestLegacyMigration:
             "LEGACY_CHECKOUTS_FILE",
             tmp_path / "does_not_exist.json",
         )
-        store = CheckoutRecordRepository(db=_db())
+        store = CheckoutRecordRepository(engine=_engine())
         assert store.list() == []
 
-    def test_does_not_remigrate_once_collection_has_data(self, tmp_path, monkeypatch):
-        from bson import ObjectId
-
+    def test_does_not_remigrate_once_table_has_data(self, tmp_path, monkeypatch):
         legacy_file = tmp_path / "checkouts.json"
         legacy_file.write_text(
             '[{"id": "stale", "created_at": "2026-01-01T00:00:00", "gid": "gstale", '
@@ -123,22 +123,21 @@ class TestLegacyMigration:
             checkout_repository_module, "LEGACY_CHECKOUTS_FILE", legacy_file
         )
 
-        db = _db()
-        db["checkouts"].insert_one(
-            {
-                "_id": "existing",
-                "_order": ObjectId(),
-                "id": "existing",
-                "created_at": "2026-02-01T00:00:00",
-                "gid": "existing",
-                "sale_time": "",
-                "status": "awaiting_payment",
-                "completed": False,
-                "cart_results": [],
-                "payinfo": None,
-                "log_tail": [],
-            }
-        )
+        engine = _engine()
+        with engine.begin() as conn:
+            conn.execute(
+                sa.insert(checkouts_table).values(
+                    id="existing",
+                    created_at="2026-02-01T00:00:00",
+                    gid="existing",
+                    sale_time="",
+                    status="awaiting_payment",
+                    completed=False,
+                    cart_results=[],
+                    payinfo=None,
+                    log_tail=[],
+                )
+            )
 
-        store = CheckoutRecordRepository(db=db)
+        store = CheckoutRecordRepository(engine=engine)
         assert [r["gid"] for r in store.list()] == ["existing"]

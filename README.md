@@ -5,8 +5,8 @@
 ## 安裝
 
 ```bash
-# 本機開發需要一個可連線的 MongoDB
-docker run -d -p 127.0.0.1:27017:27017 -v pchome-mongo-data:/data/db mongo:4.4
+# 本機開發需要一個可連線的 PostgreSQL
+docker run -d -p 127.0.0.1:5432:5432 -e POSTGRES_USER=pchome -e POSTGRES_PASSWORD=pchome -e POSTGRES_DB=pchome_buyer -v pchome-pg-data:/var/lib/postgresql/data postgres:16-alpine
 
 # 後端依賴（backend/ 是獨立的 src-layout 專案）
 cd backend
@@ -23,14 +23,15 @@ npm --prefix frontend run build
 
 ## 設定
 
-建立 `.env` 檔案（參考 `.env.example`），只需要 MongoDB 連線資訊：
+建立 `.env` 檔案（參考 `.env.example`），只需要 PostgreSQL 連線字串（SQLAlchemy URL）：
 
 ```env
-MONGO_URI=mongodb://localhost:27017
-MONGO_DB=pchome_buyer
+DATABASE_URL=postgresql+psycopg://pchome:pchome@localhost:5432/pchome_buyer
 ```
 
-信用卡安全碼（CVC）、是否自動確認付款（AUTO_PAY）、搶購輪詢時機等參數改在控制台右上角 ⚙「設定」視窗調整，存在 MongoDB，不再透過 `.env` 設定。
+資料表在啟動時自動建立。docker-compose 部署可用 `POSTGRES_PASSWORD` 環境變數覆寫資料庫密碼（預設 `pchome`，資料庫不對外 publish port）。
+
+信用卡安全碼（CVC）、是否自動確認付款（AUTO_PAY）、搶購輪詢時機等參數改在控制台右上角 ⚙「設定」視窗調整，存在 PostgreSQL，不再透過 `.env` 設定。
 
 ## 使用方式（網頁控制台）
 
@@ -59,4 +60,4 @@ npm --prefix frontend run dev          # 終端 2：Vite dev server（自動代�
 
 ### 安全性
 
-控制台**本身沒有認證機制**。預設只綁 `127.0.0.1`；以 `--host 0.0.0.0` 部署到遠端時，請務必用反向代理（nginx basic auth、Cloudflare Access、VPN 等）保護存取——信用卡安全碼與登入 session 皆存在 MongoDB（由設定視窗管理），這些才是實際需要被保護的憑證。
+控制台**本身沒有認證機制**。預設只綁 `127.0.0.1`；以 `--host 0.0.0.0` 部署到遠端時，請務必用反向代理（nginx basic auth、Cloudflare Access、VPN 等）保護存取——信用卡安全碼與登入 session 皆存在 PostgreSQL（由設定視窗管理），這些才是實際需要被保護的憑證。

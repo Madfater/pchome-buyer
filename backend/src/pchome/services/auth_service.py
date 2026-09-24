@@ -3,7 +3,7 @@
 遠端部署時無法在伺服器上開有頭瀏覽器登入，改為在本機登入後把
 Playwright storage_state（瀏覽器 devtools 匯出）或瀏覽器擴充功能
 （Cookie-Editor / EditThisCookie）匯出的 cookie 陣列貼到控制台匯入，
-存進 AuthStateRepository（MongoDB）。
+存進 AuthStateRepository（PostgreSQL）。
 """
 
 import json

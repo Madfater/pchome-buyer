@@ -1,16 +1,16 @@
 import json
 
-import mongomock
 import pytest
 
 from pchome.repositories.auth_state_repository import AuthStateRepository
 from pchome.services import auth_service as auth_service_module
 from pchome.services.auth_service import AuthService, _convert_extension_cookie
+from tests.support.db import memory_engine
 
 
 @pytest.fixture
 def store():
-    return AuthStateRepository(db=mongomock.MongoClient()["test"])
+    return AuthStateRepository(engine=memory_engine())
 
 
 @pytest.fixture

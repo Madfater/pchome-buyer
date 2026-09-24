@@ -1,17 +1,17 @@
 import threading
 
-import mongomock
 import pytest
 
 from pchome.core.runner import JobResult
+from pchome.infra.event_bus import EventBus
 from pchome.repositories import settings_repository as settings_repository_module
 from pchome.repositories.auth_state_repository import AuthStateRepository
 from pchome.repositories.checkout_repository import CheckoutRecordRepository
 from pchome.repositories.product_repository import ProductRepository
 from pchome.repositories.settings_repository import SettingsRepository
-from pchome.infra.event_bus import EventBus
 from pchome.services import job_service as job_service_module
 from pchome.services.job_service import JobService
+from tests.support.db import memory_engine
 
 
 @pytest.fixture(autouse=True)
@@ -26,12 +26,12 @@ def svc(tmp_path, monkeypatch):
     monkeypatch.setattr(
         settings_repository_module, "LEGACY_ENV_FILE", tmp_path / "does_not_exist.env"
     )
-    db = mongomock.MongoClient()["test"]
-    product_repository = ProductRepository(db=db)
-    checkout_repository = CheckoutRecordRepository(db=db)
+    engine = memory_engine()
+    product_repository = ProductRepository(engine=engine)
+    checkout_repository = CheckoutRecordRepository(engine=engine)
     bus = EventBus()
-    settings_repository = SettingsRepository(db=db)
-    auth_state_repository = AuthStateRepository(db=db)
+    settings_repository = SettingsRepository(engine=engine)
+    auth_state_repository = AuthStateRepository(engine=engine)
     return JobService(
         product_repository,
         checkout_repository,

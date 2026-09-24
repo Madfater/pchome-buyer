@@ -1,8 +1,8 @@
-import mongomock
 import pytest
 
 from pchome.repositories import settings_repository as settings_repository_module
 from pchome.repositories.settings_repository import SettingsRepository
+from tests.support.db import memory_engine
 
 
 @pytest.fixture(autouse=True)
@@ -15,8 +15,8 @@ def no_real_env_file(monkeypatch, tmp_path):
 
 
 def _store():
-    db = mongomock.MongoClient()["test"]
-    return db, SettingsRepository(db=db)
+    engine = memory_engine()
+    return engine, SettingsRepository(engine=engine)
 
 
 class TestDefaults:
@@ -34,9 +34,9 @@ class TestDefaults:
         assert s["retry_delay_secs"] == 0.3
 
     def test_reopening_same_db_does_not_reset_values(self):
-        db, store = _store()
+        engine, store = _store()
         store.update({"cvc": "999"})
-        reopened = SettingsRepository(db=db)
+        reopened = SettingsRepository(engine=engine)
         assert reopened.get()["cvc"] == "999"
 
 
@@ -52,9 +52,9 @@ class TestUpdate:
         assert result2["auto_pay"] is True
 
     def test_update_persists(self):
-        db, store = _store()
+        engine, store = _store()
         store.update({"max_retries": 5})
-        assert SettingsRepository(db=db).get()["max_retries"] == 5
+        assert SettingsRepository(engine=engine).get()["max_retries"] == 5
 
 
 class TestValidationBounds:
@@ -107,8 +107,8 @@ class TestEnvMigration:
         env_file.write_text("CVC=456\nAUTO_PAY=true\n")
         monkeypatch.setattr(settings_repository_module, "LEGACY_ENV_FILE", env_file)
 
-        db = mongomock.MongoClient()["test"]
-        store = SettingsRepository(db=db)
+        engine = memory_engine()
+        store = SettingsRepository(engine=engine)
 
         s = store.get()
         assert s["cvc"] == "456"
@@ -121,11 +121,11 @@ class TestEnvMigration:
         env_file.write_text("CVC=456\n")
         monkeypatch.setattr(settings_repository_module, "LEGACY_ENV_FILE", env_file)
 
-        db = mongomock.MongoClient()["test"]
-        SettingsRepository(db=db)
+        engine = memory_engine()
+        SettingsRepository(engine=engine)
 
         env_file.write_text("CVC=999\n")
-        reopened = SettingsRepository(db=db)
+        reopened = SettingsRepository(engine=engine)
         assert reopened.get()["cvc"] == "456"
 
     def test_missing_env_file_does_not_crash_init(self, tmp_path, monkeypatch):
@@ -134,6 +134,6 @@ class TestEnvMigration:
             "LEGACY_ENV_FILE",
             tmp_path / "does_not_exist.env",
         )
-        db = mongomock.MongoClient()["test"]
-        store = SettingsRepository(db=db)
+        engine = memory_engine()
+        store = SettingsRepository(engine=engine)
         assert store.get()["cvc"] == ""
